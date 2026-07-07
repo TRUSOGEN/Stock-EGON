@@ -44,6 +44,27 @@ class TestLLMEnhancer(unittest.TestCase):
         self.assertEqual(config.model, "deepseek-chat")
         self.assertEqual(config.provider, "deepseek")
 
+    def test_load_llm_config_supports_ark_shortcut(self) -> None:
+        """火山方舟 key 会推断北京 region 的 OpenAI-compatible base URL。"""
+        with patch.dict(
+            "os.environ",
+            {"ARK_API_KEY": "ark-secret", "ARK_MODEL": "ep-ark-model"},
+            clear=True,
+        ):
+            config = load_llm_config_from_env()
+
+        self.assertTrue(config.enabled)
+        self.assertEqual(config.api_key, "ark-secret")
+        self.assertEqual(config.base_url, "https://ark.cn-beijing.volces.com/api/v3")
+        self.assertEqual(config.model, "ep-ark-model")
+        self.assertEqual(config.provider, "ark")
+
+    def test_load_llm_config_requires_ark_model(self) -> None:
+        """火山方舟必须显式配置模型或接入点，避免猜错接入点。"""
+        with patch.dict("os.environ", {"ARK_API_KEY": "ark-secret"}, clear=True):
+            with self.assertRaisesRegex(ValueError, "ARK_MODEL"):
+                load_llm_config_from_env()
+
     def test_load_llm_config_prefers_explicit_generic_key_over_deepseek_shortcut(self) -> None:
         """通用 LLM key 存在时不被遗留 DeepSeek key 影响默认 provider。"""
         with patch.dict(

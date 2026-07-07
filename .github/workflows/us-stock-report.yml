@@ -47,6 +47,10 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL || vars.OPENAI_BASE_URL }}
           OPENAI_MODEL: ${{ secrets.OPENAI_MODEL || vars.OPENAI_MODEL }}
+          ARK_API_KEY: ${{ secrets.ARK_API_KEY }}
+          ARK_BASE_URL: ${{ secrets.ARK_BASE_URL || vars.ARK_BASE_URL }}
+          ARK_MODEL: ${{ secrets.ARK_MODEL || vars.ARK_MODEL }}
+          VOLCENGINE_ARK_API_KEY: ${{ secrets.VOLCENGINE_ARK_API_KEY }}
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           DEEPSEEK_MODEL: ${{ secrets.DEEPSEEK_MODEL || vars.DEEPSEEK_MODEL }}
           EMAIL_ADDRESS: ${{ secrets.EMAIL_ADDRESS }}
@@ -83,6 +87,10 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL || vars.OPENAI_BASE_URL }}
           OPENAI_MODEL: ${{ secrets.OPENAI_MODEL || vars.OPENAI_MODEL }}
+          ARK_API_KEY: ${{ secrets.ARK_API_KEY }}
+          ARK_BASE_URL: ${{ secrets.ARK_BASE_URL || vars.ARK_BASE_URL }}
+          ARK_MODEL: ${{ secrets.ARK_MODEL || vars.ARK_MODEL }}
+          VOLCENGINE_ARK_API_KEY: ${{ secrets.VOLCENGINE_ARK_API_KEY }}
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           DEEPSEEK_MODEL: ${{ secrets.DEEPSEEK_MODEL || vars.DEEPSEEK_MODEL }}
           EMAIL_ADDRESS: ${{ secrets.EMAIL_ADDRESS }}

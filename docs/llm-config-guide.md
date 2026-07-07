@@ -23,6 +23,17 @@ flowchart LR
 
 系统会自动使用 `https://api.deepseek.com` 和 `deepseek-chat`。如果要换 DeepSeek 模型，可以额外配置 `DEEPSEEK_MODEL`。
 
+## 火山方舟配置
+
+如果 API key 来自火山方舟，应使用 Ark 专用字段，不要把火山方舟 key 填到 `DEEPSEEK_API_KEY`。在 GitHub Secrets 中新增：
+
+| Name | Secret 填什么 |
+|---|---|
+| `ARK_API_KEY` | 火山方舟 API key |
+| `ARK_MODEL` | 火山方舟 model 或接入点 ID |
+
+默认 base URL 是 `https://ark.cn-beijing.volces.com/api/v3`。如果你使用其他 region 或网关，可额外配置 `ARK_BASE_URL`。`ARK_MODEL` 必须显式填写，因为火山方舟的 `model` 可能是接入点 ID，也可能是具体模型名，项目不能替用户猜。
+
 ## 通用 OpenAI-compatible 配置
 
 如果使用硅基流动、阿里百炼、OpenRouter、Moonshot 或其他兼容 OpenAI chat completions 的平台，配置：

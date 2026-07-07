@@ -340,6 +340,14 @@
             <h2>LLM 投研助理</h2>
             <div class="grid">
               <label>
+                火山方舟 API key
+                <input id="arkApiKey" type="password" autocomplete="off" />
+              </label>
+              <label>
+                火山方舟 model / 接入点 ID
+                <input id="arkModel" placeholder="ep-xxxxxxxx 或模型名" />
+              </label>
+              <label>
                 DeepSeek API key
                 <input id="deepseekApiKey" type="password" autocomplete="off" />
               </label>
@@ -356,7 +364,7 @@
                 <input id="llmModel" placeholder="deepseek-chat" />
               </label>
             </div>
-            <p>只用 DeepSeek 时填 DeepSeek API key 即可；其他 OpenAI-compatible 服务可填写通用 key、base URL 和 model。</p>
+            <p>火山方舟需要同时填写 API key 和 model/接入点 ID；只用 DeepSeek 官方接口时填 DeepSeek API key 即可；其他 OpenAI-compatible 服务可填写通用 key、base URL 和 model。</p>
           </section>
 
           <section class="section">
@@ -475,6 +483,8 @@
           ["EMAIL_PASSWORD", document.getElementById("emailPassword").value],
           ["EMAIL_FROM", document.getElementById("emailFrom").value],
           ["EMAIL_USE_TLS", "true"],
+          ["ARK_API_KEY", document.getElementById("arkApiKey").value],
+          ["ARK_MODEL", document.getElementById("arkModel").value],
           ["DEEPSEEK_API_KEY", document.getElementById("deepseekApiKey").value],
           ["LLM_API_KEY", document.getElementById("llmApiKey").value],
           ["LLM_BASE_URL", document.getElementById("llmBaseUrl").value],

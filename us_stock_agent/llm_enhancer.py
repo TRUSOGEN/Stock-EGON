@@ -57,8 +57,9 @@ def load_llm_config_from_env() -> LLMConfig:
     """从环境变量读取 OpenAI-compatible LLM 配置。"""
     llm_key = _read_env("LLM_API_KEY")
     openai_key = _read_env("OPENAI_API_KEY")
+    ark_key = _read_env("ARK_API_KEY") or _read_env("VOLCENGINE_ARK_API_KEY")
     deepseek_key = _read_env("DEEPSEEK_API_KEY")
-    api_key = llm_key or openai_key or deepseek_key
+    api_key = llm_key or openai_key or ark_key or deepseek_key
     if not api_key:
         return LLMConfig(
             enabled=False,
@@ -69,12 +70,16 @@ def load_llm_config_from_env() -> LLMConfig:
             reason="llm_not_configured",
         )
 
-    provider = _infer_provider(api_key_source=_api_key_source(llm_key=llm_key, openai_key=openai_key))
-    base_url = _read_env("LLM_BASE_URL") or _read_env("OPENAI_BASE_URL")
-    model = _read_env("LLM_MODEL") or _read_env("OPENAI_MODEL") or _read_env("DEEPSEEK_MODEL")
+    provider = _infer_provider(api_key_source=_api_key_source(llm_key=llm_key, openai_key=openai_key, ark_key=ark_key))
+    base_url = _read_env("LLM_BASE_URL") or _read_env("OPENAI_BASE_URL") or _read_env("ARK_BASE_URL")
+    model = _read_env("LLM_MODEL") or _read_env("OPENAI_MODEL") or _read_env("ARK_MODEL") or _read_env("DEEPSEEK_MODEL")
     if provider == "deepseek":
         base_url = base_url or "https://api.deepseek.com"
         model = model or "deepseek-chat"
+    elif provider == "ark":
+        base_url = base_url or "https://ark.cn-beijing.volces.com/api/v3"
+        if not model:
+            raise ValueError("火山方舟配置不完整：需要 ARK_MODEL、LLM_MODEL 或 OPENAI_MODEL。")
     else:
         base_url = base_url or "https://api.openai.com/v1"
         model = model or "gpt-4o-mini"
@@ -188,12 +193,14 @@ def _chat_completions_url(base_url: str) -> str:
     return f"{base_url.rstrip('/')}/chat/completions"
 
 
-def _api_key_source(*, llm_key: str | None, openai_key: str | None) -> str:
+def _api_key_source(*, llm_key: str | None, openai_key: str | None, ark_key: str | None) -> str:
     """根据 key 优先级返回实际使用的 key 来源。"""
     if llm_key:
         return "llm"
     if openai_key:
         return "openai"
+    if ark_key:
+        return "ark"
     return "deepseek"
 
 
@@ -202,6 +209,8 @@ def _infer_provider(*, api_key_source: str) -> str:
     explicit_provider = _read_env("LLM_PROVIDER")
     if explicit_provider:
         return explicit_provider
+    if api_key_source == "ark":
+        return "ark"
     if api_key_source == "deepseek":
         return "deepseek"
     return "openai_compatible"
