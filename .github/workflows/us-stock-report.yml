@@ -39,6 +39,8 @@ jobs:
           BRAVE_API_KEYS: ${{ secrets.BRAVE_API_KEYS }}
           NEWS_PROVIDER_ORDER: ${{ secrets.NEWS_PROVIDER_ORDER || vars.NEWS_PROVIDER_ORDER }}
           NEWS_MAX_ITEMS_PER_SYMBOL: ${{ secrets.NEWS_MAX_ITEMS_PER_SYMBOL || vars.NEWS_MAX_ITEMS_PER_SYMBOL }}
+          EMAIL_ADDRESS: ${{ secrets.EMAIL_ADDRESS }}
+          EMAIL_AUTH_CODE: ${{ secrets.EMAIL_AUTH_CODE }}
           EMAIL_SMTP_HOST: ${{ secrets.EMAIL_SMTP_HOST }}
           EMAIL_SMTP_PORT: ${{ secrets.EMAIL_SMTP_PORT || vars.EMAIL_SMTP_PORT }}
           EMAIL_USERNAME: ${{ secrets.EMAIL_USERNAME }}
@@ -63,6 +65,8 @@ jobs:
           BRAVE_API_KEYS: ${{ secrets.BRAVE_API_KEYS }}
           NEWS_PROVIDER_ORDER: ${{ secrets.NEWS_PROVIDER_ORDER || vars.NEWS_PROVIDER_ORDER }}
           NEWS_MAX_ITEMS_PER_SYMBOL: ${{ secrets.NEWS_MAX_ITEMS_PER_SYMBOL || vars.NEWS_MAX_ITEMS_PER_SYMBOL }}
+          EMAIL_ADDRESS: ${{ secrets.EMAIL_ADDRESS }}
+          EMAIL_AUTH_CODE: ${{ secrets.EMAIL_AUTH_CODE }}
           EMAIL_SMTP_HOST: ${{ secrets.EMAIL_SMTP_HOST }}
           EMAIL_SMTP_PORT: ${{ secrets.EMAIL_SMTP_PORT || vars.EMAIL_SMTP_PORT }}
           EMAIL_USERNAME: ${{ secrets.EMAIL_USERNAME }}

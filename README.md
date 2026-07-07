@@ -8,11 +8,11 @@ Stock-EGON 是一个股票研究辅助项目，当前包含两部分：基于 AK
 
 第二步，在 GitHub 仓库的 `Settings` -> `Secrets and variables` -> `Actions` 页面，停留在 `Secrets` 标签页，不要切到 `Variables`。点击 `New repository secret`，`Name` 填 `PORTFOLIO_JSON`，`Secret` 填下面“最小可用配置”里的完整 JSON。真实持仓不要提交到仓库，也不要放到 Variables。
 
-第三步，如果要邮件推送，在同一个 `Secrets` 标签页继续新增 SMTP 配置。最少需要 `EMAIL_SMTP_HOST`、`EMAIL_USERNAME`、`EMAIL_PASSWORD`、`EMAIL_FROM`、`EMAIL_TO`。Gmail、QQ 邮箱、Outlook 等通常要填应用专用密码，不要填网页登录密码。
+第三步，如果要邮件推送，QQ 邮箱推荐只在同一个 `Secrets` 标签页新增 `EMAIL_ADDRESS` 和 `EMAIL_AUTH_CODE`。`EMAIL_ADDRESS` 填你的 QQ 邮箱，`EMAIL_AUTH_CODE` 填 QQ 邮箱生成的 SMTP 授权码，不要填网页登录密码。其他邮箱仍可使用完整 SMTP 配置。
 
 如果你不想手工写 `PORTFOLIO_JSON`，可以把 [docs/portfolio-input-template.md](docs/portfolio-input-template.md) 里的提示词发给 AI，再附上持仓截图或表格，让 AI 只负责整理出可复制的 JSON。
 
-如果你想一次性填持仓、邮箱和新闻源，可以打开 [docs/config-wizard.html](docs/config-wizard.html)。这个页面会在浏览器本地生成 `PORTFOLIO_JSON` 和 `gh secret set` 命令，方便一次性写入 GitHub Secrets。
+如果你想一次性填持仓、邮箱和新闻源，可以打开 [docs/config-wizard.html](docs/config-wizard.html)。这个页面会在浏览器本地生成 `PORTFOLIO_JSON` 和 `gh secret set` 命令。生成后的命令可以直接复制到本机终端执行，macOS 默认 zsh 或 bash 都可以；如果终端提示没有登录 GitHub CLI，先运行 `gh auth login`。
 
 ## AI API 和复用边界
 
@@ -35,12 +35,14 @@ Stock-EGON 是一个股票研究辅助项目，当前包含两部分：基于 AK
 | Name | Secret 填什么 | 是否必填 | 放在哪里 |
 |---|---|---:|---|
 | `PORTFOLIO_JSON` | 你的完整持仓 JSON | 是 | Secrets |
-| `EMAIL_SMTP_HOST` | SMTP 服务器，例如 `smtp.gmail.com` | 邮件必填 | Secrets |
-| `EMAIL_SMTP_PORT` | SMTP 端口，通常是 `587` | 邮件必填 | Secrets |
-| `EMAIL_USERNAME` | 发件邮箱账号 | 邮件必填 | Secrets |
-| `EMAIL_PASSWORD` | 发件邮箱应用专用密码 | 邮件必填 | Secrets |
-| `EMAIL_FROM` | 发件邮箱地址 | 邮件必填 | Secrets |
-| `EMAIL_TO` | 收件邮箱地址，多个用逗号分隔 | 邮件必填 | Secrets |
+| `EMAIL_ADDRESS` | QQ 邮箱地址，例如 `you@qq.com` | QQ 邮件推荐必填 | Secrets |
+| `EMAIL_AUTH_CODE` | QQ 邮箱 SMTP 授权码 | QQ 邮件推荐必填 | Secrets |
+| `EMAIL_SMTP_HOST` | SMTP 服务器，例如 `smtp.gmail.com` | 其他邮箱可选 | Secrets |
+| `EMAIL_SMTP_PORT` | SMTP 端口，通常是 `587` | 其他邮箱可选 | Secrets |
+| `EMAIL_USERNAME` | 发件邮箱账号 | 其他邮箱可选 | Secrets |
+| `EMAIL_PASSWORD` | 发件邮箱应用专用密码 | 其他邮箱可选 | Secrets |
+| `EMAIL_FROM` | 发件邮箱地址 | 其他邮箱可选 | Secrets |
+| `EMAIL_TO` | 收件邮箱地址，多个用逗号分隔 | 其他邮箱可选 | Secrets |
 | `SERPAPI_API_KEY` | SerpAPI 新闻搜索 key | 否 | Secrets |
 | `TAVILY_API_KEY` | Tavily 新闻搜索 key | 否 | Secrets |
 | `BRAVE_API_KEY` | Brave Search key | 否 | Secrets |
@@ -120,6 +122,13 @@ open docs/config-wizard.html
 ```
 
 通过邮件发送已生成的美股报告：
+
+```bash
+EMAIL_ADDRESS="you@qq.com" EMAIL_AUTH_CODE="smtp-auth-code" \
+python scripts/send_email_report.py --report-file reports/us-daily-report.json
+```
+
+使用完整 SMTP 配置发送已生成的美股报告：
 
 ```bash
 EMAIL_SMTP_HOST="smtp.example.com" EMAIL_SMTP_PORT="587" \

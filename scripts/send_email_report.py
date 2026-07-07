@@ -2,8 +2,9 @@
 """把已经生成的美股报告 JSON 通过 SMTP 邮件发送。
 
 脚本读取统一结果 JSON 中的 `data.report_markdown` 字段，并通过
+`EMAIL_ADDRESS`、`EMAIL_AUTH_CODE` 发送 QQ 邮箱纯文本邮件。其他邮箱可继续使用
 `EMAIL_SMTP_HOST`、`EMAIL_USERNAME`、`EMAIL_PASSWORD`、`EMAIL_FROM`、`EMAIL_TO`
-等环境变量发送纯文本邮件。未配置 SMTP 时显式跳过，避免影响日报和周报生成。
+等完整 SMTP 环境变量。未配置 SMTP 时显式跳过，避免影响日报和周报生成。
 """
 
 from __future__ import annotations

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
 
 from us_stock_agent.notifications import (
     build_email_message,
@@ -145,6 +146,25 @@ class TestEmailNotifications(unittest.TestCase):
         self.assertEqual(smtp.login_args, ("bot@example.com", "secret"))
         self.assertEqual(smtp.messages[0]["To"], "user@example.com, other@example.com")
         self.assertTrue(smtp.closed)
+
+    def test_send_email_markdown_supports_qq_email_shortcut_env(self) -> None:
+        """QQ 邮箱只需 EMAIL_ADDRESS 和 EMAIL_AUTH_CODE 即可发送给自己。"""
+        with patch.dict(
+            "os.environ",
+            {
+                "EMAIL_ADDRESS": "user@qq.com",
+                "EMAIL_AUTH_CODE": "auth-code",
+            },
+            clear=True,
+        ):
+            result = send_email_markdown("# report", subject="Daily", smtp_factory=FakeSMTP)
+
+        self.assertTrue(result["sent"])
+        smtp = FakeSMTP.instances[0]
+        self.assertEqual((smtp.host, smtp.port, smtp.timeout), ("smtp.qq.com", 587, 10))
+        self.assertEqual(smtp.login_args, ("user@qq.com", "auth-code"))
+        self.assertEqual(smtp.messages[0]["From"], "user@qq.com")
+        self.assertEqual(smtp.messages[0]["To"], "user@qq.com")
 
 
 if __name__ == "__main__":

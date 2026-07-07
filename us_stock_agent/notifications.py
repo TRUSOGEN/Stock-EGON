@@ -97,12 +97,15 @@ def send_email_markdown(
     smtp_factory: SMTPFactory | None = None,
 ) -> dict[str, Any]:
     """通过 SMTP 发送 Markdown 报告，并返回可审计的发送结果。"""
-    host = smtp_host or os.environ.get("EMAIL_SMTP_HOST")
+    shortcut_email = os.environ.get("EMAIL_ADDRESS")
+    shortcut_auth_code = os.environ.get("EMAIL_AUTH_CODE")
+    inferred_host = "smtp.qq.com" if _is_qq_email(shortcut_email) else None
+    host = smtp_host or os.environ.get("EMAIL_SMTP_HOST") or inferred_host
     raw_port = smtp_port or _parse_int(os.environ.get("EMAIL_SMTP_PORT"), default=587)
-    login_user = username if username is not None else os.environ.get("EMAIL_USERNAME")
-    login_password = password if password is not None else os.environ.get("EMAIL_PASSWORD")
+    login_user = username if username is not None else os.environ.get("EMAIL_USERNAME") or shortcut_email
+    login_password = password if password is not None else os.environ.get("EMAIL_PASSWORD") or shortcut_auth_code
     from_addr = sender or os.environ.get("EMAIL_FROM") or login_user
-    to_addrs = recipients if recipients is not None else os.environ.get("EMAIL_TO")
+    to_addrs = recipients if recipients is not None else os.environ.get("EMAIL_TO") or shortcut_email
     tls_enabled = use_tls if use_tls is not None else _parse_bool(os.environ.get("EMAIL_USE_TLS"), default=True)
     if not host or not from_addr or not to_addrs:
         return {"sent": False, "skipped": True, "reason": "email_not_configured"}
@@ -168,6 +171,13 @@ def _parse_int(value: str | None, *, default: int) -> int:
         return int(value)
     except ValueError:
         return default
+
+
+def _is_qq_email(value: str | None) -> bool:
+    """判断邮箱是否可以使用 QQ 邮箱默认 SMTP 配置。"""
+    if not value:
+        return False
+    return value.strip().lower().endswith("@qq.com")
 
 
 def _close_smtp(smtp: Any) -> None:
