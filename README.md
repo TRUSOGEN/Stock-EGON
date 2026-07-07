@@ -8,7 +8,7 @@ Stock-EGON 是一个股票研究辅助项目，当前包含两部分：基于 AK
 
 第二步，在 GitHub 仓库的 `Settings` -> `Secrets and variables` -> `Actions` 页面，停留在 `Secrets` 标签页，不要切到 `Variables`。点击 `New repository secret`，`Name` 填 `PORTFOLIO_JSON`，`Secret` 填下面“最小可用配置”里的完整 JSON。真实持仓不要提交到仓库，也不要放到 Variables。
 
-第三步，如果要微信推送，在同一个 `Secrets` 标签页再点一次 `New repository secret`。`Name` 填 `WECHAT_WEBHOOK_URL`，`Secret` 填企业微信群机器人复制出来的完整 webhook 地址。配置后日报和周报会自动推送到群里。普通群机器人只能单向推送，不能接收你的追问；交互式问答需要后续单独接企业微信应用、公众号或自建回调服务。
+第三步，如果要微信推送，在同一个 `Secrets` 标签页再点一次 `New repository secret`。`Name` 填 `WECHAT_WEBHOOK_URL`，`Secret` 填企业微信群机器人复制出来的完整 webhook 地址。具体从哪里创建机器人、怎么复制 URL、怎么测试，见 [docs/wechat-bot.md](docs/wechat-bot.md)。普通群机器人只能单向推送，不能接收你的追问；交互式问答需要后续单独接企业微信应用、公众号或自建回调服务。
 
 如果你不想手工写 `PORTFOLIO_JSON`，可以把 [docs/portfolio-input-template.md](docs/portfolio-input-template.md) 里的提示词发给 AI，再附上持仓截图或表格，让 AI 只负责整理出可复制的 JSON。
 
