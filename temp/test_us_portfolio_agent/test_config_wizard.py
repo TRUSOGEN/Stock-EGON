@@ -13,17 +13,21 @@ class TestConfigWizard(unittest.TestCase):
     """验证配置向导覆盖一次性配置所需字段。"""
 
     def test_config_wizard_exposes_required_configuration_fields(self) -> None:
-        """静态网页必须能生成持仓、微信和新闻源配置。"""
+        """静态网页必须能生成持仓、邮箱和新闻源配置。"""
         html = (PROJECT_ROOT / "docs" / "config-wizard.html").read_text(encoding="utf-8")
 
         for expected in (
             "portfolioRows",
-            "wechatWebhookUrl",
             "serpapiKey",
             "tavilyKey",
             "braveKey",
+            "emailTo",
+            "emailSmtpHost",
+            "emailPassword",
             "PORTFOLIO_JSON",
-            "WECHAT_WEBHOOK_URL",
+            "EMAIL_TO",
+            "EMAIL_SMTP_HOST",
+            "EMAIL_PASSWORD",
             "SERPAPI_API_KEY",
             "TAVILY_API_KEY",
             "BRAVE_API_KEY",

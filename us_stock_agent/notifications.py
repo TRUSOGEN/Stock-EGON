@@ -6,13 +6,16 @@
 
 from __future__ import annotations
 
+import smtplib
 import os
+from email.message import EmailMessage
 from typing import Any, Callable
 
 import requests
 
 
 PostClient = Callable[..., Any]
+SMTPFactory = Callable[..., Any]
 
 
 def build_wechat_markdown_payload(markdown: str) -> dict[str, Any]:
@@ -57,6 +60,76 @@ def send_wechat_markdown(
     }
 
 
+def build_email_message(
+    markdown: str,
+    *,
+    subject: str,
+    sender: str,
+    recipients: str | list[str],
+) -> EmailMessage:
+    """把报告 Markdown 包装为纯文本邮件。"""
+    content = markdown.strip()
+    if not content:
+        raise ValueError("email markdown content 不能为空。")
+    recipient_list = _normalize_recipients(recipients)
+    if not recipient_list:
+        raise ValueError("email recipients 不能为空。")
+    message = EmailMessage()
+    message["Subject"] = subject
+    message["From"] = sender
+    message["To"] = ", ".join(recipient_list)
+    message.set_content(content)
+    return message
+
+
+def send_email_markdown(
+    markdown: str,
+    *,
+    subject: str = "Stock-EGON 美股持仓报告",
+    smtp_host: str | None = None,
+    smtp_port: int | None = None,
+    username: str | None = None,
+    password: str | None = None,
+    sender: str | None = None,
+    recipients: str | list[str] | None = None,
+    use_tls: bool | None = None,
+    timeout: int = 10,
+    smtp_factory: SMTPFactory | None = None,
+) -> dict[str, Any]:
+    """通过 SMTP 发送 Markdown 报告，并返回可审计的发送结果。"""
+    host = smtp_host or os.environ.get("EMAIL_SMTP_HOST")
+    raw_port = smtp_port or _parse_int(os.environ.get("EMAIL_SMTP_PORT"), default=587)
+    login_user = username if username is not None else os.environ.get("EMAIL_USERNAME")
+    login_password = password if password is not None else os.environ.get("EMAIL_PASSWORD")
+    from_addr = sender or os.environ.get("EMAIL_FROM") or login_user
+    to_addrs = recipients if recipients is not None else os.environ.get("EMAIL_TO")
+    tls_enabled = use_tls if use_tls is not None else _parse_bool(os.environ.get("EMAIL_USE_TLS"), default=True)
+    if not host or not from_addr or not to_addrs:
+        return {"sent": False, "skipped": True, "reason": "email_not_configured"}
+    if login_user and not login_password:
+        return {"sent": False, "skipped": False, "reason": "email_smtp_auth_incomplete"}
+
+    message = build_email_message(markdown, subject=subject, sender=from_addr, recipients=to_addrs)
+    factory = smtp_factory or smtplib.SMTP
+    smtp = factory(host, raw_port, timeout=timeout)
+    try:
+        if tls_enabled:
+            smtp.starttls()
+        if login_user and login_password:
+            smtp.login(login_user, login_password)
+        smtp.send_message(message)
+    finally:
+        _close_smtp(smtp)
+    return {
+        "sent": True,
+        "skipped": False,
+        "reason": None,
+        "smtp_host": host,
+        "smtp_port": raw_port,
+        "recipients": _normalize_recipients(to_addrs),
+    }
+
+
 def _read_json_response(response: Any) -> dict[str, Any]:
     """读取 webhook 响应 JSON；非 JSON 响应保留为空对象。"""
     try:
@@ -66,3 +139,39 @@ def _read_json_response(response: Any) -> dict[str, Any]:
     if isinstance(payload, dict):
         return payload
     return {"payload": payload}
+
+
+def _normalize_recipients(recipients: str | list[str]) -> list[str]:
+    """解析邮件收件人列表。"""
+    if isinstance(recipients, str):
+        return [item.strip() for item in recipients.split(",") if item.strip()]
+    return [item.strip() for item in recipients if item.strip()]
+
+
+def _parse_bool(value: str | None, *, default: bool) -> bool:
+    """解析布尔环境变量。"""
+    if value is None:
+        return default
+    normalized = value.strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    return default
+
+
+def _parse_int(value: str | None, *, default: int) -> int:
+    """解析整数环境变量。"""
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        return default
+
+
+def _close_smtp(smtp: Any) -> None:
+    """关闭 SMTP 连接，兼容测试 fake client。"""
+    close = getattr(smtp, "quit", None) or getattr(smtp, "close", None)
+    if close:
+        close()

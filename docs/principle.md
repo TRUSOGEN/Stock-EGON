@@ -34,7 +34,7 @@ flowchart LR
     I --> J["Notification Adapter"]
 ```
 
-真实持仓、新闻源 token 和通知 webhook 应通过 GitHub Secrets、Codex automation prompt 或运行时环境变量注入，不应写入仓库。`config/portfolio.example.json` 和文档示例只能使用假持仓。
+真实持仓、新闻源 token、SMTP 密码和通知 webhook 应通过 GitHub Secrets、Codex automation prompt 或运行时环境变量注入，不应写入仓库。`config/portfolio.example.json` 和文档示例只能使用假持仓。
 
 ## 核心实体
 
@@ -66,7 +66,7 @@ flowchart LR
 
 组合风险必须在日报和周报中展示，至少包含单票集中度、现金不足和持仓数量。默认单票集中度阈值为 balanced 30%、aggressive 38%、conservative 22%；现金不足阈值为 balanced/conservative 5%、aggressive 3%。这些阈值用于风险提示，不用于自动交易。
 
-通知层只发送已经生成的报告，不参与评分、风控和数据抓取。企业微信群机器人 webhook 只承担单向推送；交互式微信问答需要独立的消息接收服务、鉴权、审计和 agent API 调用链路。
+通知层只发送已经生成的报告，不参与评分、风控和数据抓取。默认 workflow 使用 SMTP 邮件推送；企业微信群机器人 webhook 只作为可选保留通道。交互式微信问答需要独立的消息接收服务、鉴权、审计和 agent API 调用链路。
 
 新闻层通过 `SERPAPI_API_KEY`、`TAVILY_API_KEY`、`BRAVE_API_KEY` 或对应复数 key 环境变量启用。provider 输出统一的 `NewsItem`，包含 ticker、标题、来源、URL、摘要和粗粒度风险标签。日报和周报只展示压缩后的新闻标题和风险提示，不保存新闻源 key 或 webhook。
 

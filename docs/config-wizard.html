@@ -252,7 +252,7 @@
     <main>
       <section class="intro">
         <h1>Stock-EGON 配置向导</h1>
-        <p>在这个页面填持仓、微信 webhook 和新闻源 key，然后复制生成的 GitHub Secrets 命令。页面只在浏览器本地计算，不会上传你的配置。</p>
+        <p>在这个页面填持仓、邮箱 SMTP 和新闻源 key，然后复制生成的 GitHub Secrets 命令。页面只在浏览器本地计算，不会上传你的配置。</p>
       </section>
 
       <div class="layout">
@@ -297,11 +297,34 @@
           </section>
 
           <section class="section">
-            <h2>微信推送</h2>
-            <label>
-              企业微信群机器人 webhook
-              <input id="wechatWebhookUrl" type="url" placeholder="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=..." />
-            </label>
+            <h2>邮件推送</h2>
+            <div class="grid">
+              <label>
+                收件邮箱
+                <input id="emailTo" type="email" placeholder="you@example.com" />
+              </label>
+              <label>
+                SMTP host
+                <input id="emailSmtpHost" placeholder="smtp.gmail.com" />
+              </label>
+              <label>
+                SMTP port
+                <input id="emailSmtpPort" type="number" value="587" />
+              </label>
+              <label>
+                发件账号
+                <input id="emailUsername" autocomplete="off" placeholder="bot@example.com" />
+              </label>
+              <label>
+                发件密码或应用专用密码
+                <input id="emailPassword" type="password" autocomplete="off" />
+              </label>
+              <label>
+                发件邮箱
+                <input id="emailFrom" type="email" placeholder="默认使用发件账号" />
+              </label>
+            </div>
+            <p>Gmail、QQ 邮箱、Outlook 等通常需要应用专用密码，不要填写网页登录密码。</p>
           </section>
 
           <section class="section">
@@ -342,7 +365,7 @@
               <button type="button" data-copy="secretCommands">复制</button>
             </div>
             <textarea id="secretCommands" readonly></textarea>
-            <p class="note">这些命令需要在已登录 GitHub CLI 的终端里执行。不要把 key 或 webhook 提交进仓库。</p>
+            <p class="note">这些命令需要在已登录 GitHub CLI 的终端里执行。不要把 key、邮箱密码或 webhook 提交进仓库。</p>
           </div>
 
           <div class="error" id="errorBox"></div>
@@ -411,7 +434,13 @@
       function buildSecretCommands(portfolioJson) {
         const pairs = [["PORTFOLIO_JSON", portfolioJson]];
         const optional = [
-          ["WECHAT_WEBHOOK_URL", document.getElementById("wechatWebhookUrl").value],
+          ["EMAIL_TO", document.getElementById("emailTo").value],
+          ["EMAIL_SMTP_HOST", document.getElementById("emailSmtpHost").value],
+          ["EMAIL_SMTP_PORT", document.getElementById("emailSmtpPort").value],
+          ["EMAIL_USERNAME", document.getElementById("emailUsername").value],
+          ["EMAIL_PASSWORD", document.getElementById("emailPassword").value],
+          ["EMAIL_FROM", document.getElementById("emailFrom").value],
+          ["EMAIL_USE_TLS", "true"],
           ["SERPAPI_API_KEY", document.getElementById("serpapiKey").value],
           ["TAVILY_API_KEY", document.getElementById("tavilyKey").value],
           ["BRAVE_API_KEY", document.getElementById("braveKey").value],

@@ -38,12 +38,18 @@ jobs:
           BRAVE_API_KEYS: ${{ secrets.BRAVE_API_KEYS }}
           NEWS_PROVIDER_ORDER: ${{ secrets.NEWS_PROVIDER_ORDER || vars.NEWS_PROVIDER_ORDER }}
           NEWS_MAX_ITEMS_PER_SYMBOL: ${{ secrets.NEWS_MAX_ITEMS_PER_SYMBOL || vars.NEWS_MAX_ITEMS_PER_SYMBOL }}
-          WECHAT_WEBHOOK_URL: ${{ secrets.WECHAT_WEBHOOK_URL || vars.WECHAT_WEBHOOK_URL }}
+          EMAIL_SMTP_HOST: ${{ secrets.EMAIL_SMTP_HOST }}
+          EMAIL_SMTP_PORT: ${{ secrets.EMAIL_SMTP_PORT || vars.EMAIL_SMTP_PORT }}
+          EMAIL_USERNAME: ${{ secrets.EMAIL_USERNAME }}
+          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          EMAIL_USE_TLS: ${{ secrets.EMAIL_USE_TLS || vars.EMAIL_USE_TLS }}
         run: |
           mkdir -p reports
           python scripts/us_daily_report.py > reports/us-daily-report.json
           cat reports/us-daily-report.json
-          python scripts/send_wechat_report.py --report-file reports/us-daily-report.json
+          python scripts/send_email_report.py --report-file reports/us-daily-report.json
       - name: Weekly review
         if: (github.event_name == 'schedule' && github.event.schedule == '0 1 * * 6') || (github.event_name == 'workflow_dispatch' && github.event.inputs.report_type == 'weekly')
         env:
@@ -56,12 +62,18 @@ jobs:
           BRAVE_API_KEYS: ${{ secrets.BRAVE_API_KEYS }}
           NEWS_PROVIDER_ORDER: ${{ secrets.NEWS_PROVIDER_ORDER || vars.NEWS_PROVIDER_ORDER }}
           NEWS_MAX_ITEMS_PER_SYMBOL: ${{ secrets.NEWS_MAX_ITEMS_PER_SYMBOL || vars.NEWS_MAX_ITEMS_PER_SYMBOL }}
-          WECHAT_WEBHOOK_URL: ${{ secrets.WECHAT_WEBHOOK_URL || vars.WECHAT_WEBHOOK_URL }}
+          EMAIL_SMTP_HOST: ${{ secrets.EMAIL_SMTP_HOST }}
+          EMAIL_SMTP_PORT: ${{ secrets.EMAIL_SMTP_PORT || vars.EMAIL_SMTP_PORT }}
+          EMAIL_USERNAME: ${{ secrets.EMAIL_USERNAME }}
+          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          EMAIL_USE_TLS: ${{ secrets.EMAIL_USE_TLS || vars.EMAIL_USE_TLS }}
         run: |
           mkdir -p reports
           python scripts/us_weekly_review.py > reports/us-weekly-review.json
           cat reports/us-weekly-review.json
-          python scripts/send_wechat_report.py --report-file reports/us-weekly-review.json
+          python scripts/send_email_report.py --report-file reports/us-weekly-review.json
       - name: Upload report artifact
         if: always()
         uses: actions/upload-artifact@v4

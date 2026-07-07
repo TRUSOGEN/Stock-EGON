@@ -19,7 +19,7 @@
 
 如果不想手工写 JSON，可以复制 [portfolio-input-template.md](portfolio-input-template.md) 里的提示词给 AI，再附上持仓截图或表格，让 AI 输出完整 `PORTFOLIO_JSON`。AI 只做数据整理，不应补充投资判断，也不应猜测看不清的数量。
 
-如果想一次性配置持仓、企业微信和新闻源，可以打开 [config-wizard.html](config-wizard.html)。它会在浏览器本地生成 `PORTFOLIO_JSON` 和 `gh secret set` 命令，方便直接写入 GitHub Secrets。
+如果想一次性配置持仓、邮件和新闻源，可以打开 [config-wizard.html](config-wizard.html)。它会在浏览器本地生成 `PORTFOLIO_JSON` 和 `gh secret set` 命令，方便直接写入 GitHub Secrets。
 
 ```json
 {
@@ -37,7 +37,9 @@
 
 新闻源可配置 `SERPAPI_API_KEY`、`TAVILY_API_KEY`、`BRAVE_API_KEY`，也兼容逗号分隔的 `SERPAPI_API_KEYS`、`TAVILY_API_KEYS`、`BRAVE_API_KEYS`。当前运行顺序默认是 SerpAPI、Tavily、Brave；可通过 `NEWS_PROVIDER_ORDER=tavily,serpapi,brave` 调整。报告会把每只持仓的最新标题压缩进市场背景，并把 earnings、SEC、downgrade、Fed、inflation 等关键词映射为粗粒度风险标签。
 
-企业微信推送可配置 `WECHAT_WEBHOOK_URL`，也必须放在 GitHub Secrets。获取方式是企业微信群右上角菜单 -> 群机器人 -> 添加机器人 -> 复制 webhook 地址。配置时在同一个 `Secrets` 标签页点击 `New repository secret`，`Name` 填 `WECHAT_WEBHOOK_URL`，`Secret` 填完整 webhook URL。配置后 workflow 会在生成日报或周报 JSON 后调用 `scripts/send_wechat_report.py`，把 `data.report_markdown` 推送到群里。
+邮件推送可配置 `EMAIL_SMTP_HOST`、`EMAIL_SMTP_PORT`、`EMAIL_USERNAME`、`EMAIL_PASSWORD`、`EMAIL_FROM`、`EMAIL_TO`。这些值都应放在 GitHub Secrets。配置后 workflow 会在生成日报或周报 JSON 后调用 `scripts/send_email_report.py`，把 `data.report_markdown` 作为纯文本邮件发出。Gmail、QQ 邮箱、Outlook 等通常需要应用专用密码，不要填写网页登录密码。
+
+企业微信推送脚本仍保留在 `scripts/send_wechat_report.py`，但默认 workflow 已改为邮件推送。如果后续重新使用企业微信群机器人，可以再配置 `WECHAT_WEBHOOK_URL` 并把 workflow 接回该脚本。
 
 普通企业微信群机器人只支持单向推送，不支持接收你的追问。后续如果要做到“报告发到微信，我直接问它为什么可以买、为什么要卖”，需要增加企业微信应用、公众号或自建 webhook callback 服务，具体边界见 [wechat-bot.md](wechat-bot.md)。
 
@@ -51,7 +53,7 @@
 
 ## 输出与审计
 
-workflow 会把 JSON 报告打印到日志，并上传到 `us-stock-report` artifact。报告中的 `report_markdown` 是最终可读报告，外层 JSON 保留 `ok`、`source_api`、`warnings`、`errors` 等机器可读状态。微信推送也会输出一个 `send_wechat_report` JSON，便于确认是已发送、已跳过还是 webhook 失败。
+workflow 会把 JSON 报告打印到日志，并上传到 `us-stock-report` artifact。报告中的 `report_markdown` 是最终可读报告，外层 JSON 保留 `ok`、`source_api`、`warnings`、`errors` 等机器可读状态。邮件推送也会输出一个 `send_email_report` JSON，便于确认是已发送、已跳过还是 SMTP 失败。
 
 ## 风控边界
 

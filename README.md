@@ -1,6 +1,6 @@
 # Stock-EGON
 
-Stock-EGON 是一个股票研究辅助项目，当前包含两部分：基于 AKShare 的 A 股量化分析 CLI，以及面向真实美股持仓的日报、周报、企业微信推送工作流。项目用于研究复盘和风险提示，不提供投资建议、交易指令或自动交易。
+Stock-EGON 是一个股票研究辅助项目，当前包含两部分：基于 AKShare 的 A 股量化分析 CLI，以及面向真实美股持仓的日报、周报、邮件推送工作流。项目用于研究复盘和风险提示，不提供投资建议、交易指令或自动交易。
 
 ## 你要做的三件事
 
@@ -8,11 +8,11 @@ Stock-EGON 是一个股票研究辅助项目，当前包含两部分：基于 AK
 
 第二步，在 GitHub 仓库的 `Settings` -> `Secrets and variables` -> `Actions` 页面，停留在 `Secrets` 标签页，不要切到 `Variables`。点击 `New repository secret`，`Name` 填 `PORTFOLIO_JSON`，`Secret` 填下面“最小可用配置”里的完整 JSON。真实持仓不要提交到仓库，也不要放到 Variables。
 
-第三步，如果要微信推送，在同一个 `Secrets` 标签页再点一次 `New repository secret`。`Name` 填 `WECHAT_WEBHOOK_URL`，`Secret` 填企业微信群机器人复制出来的完整 webhook 地址。具体从哪里创建机器人、怎么复制 URL、怎么测试，见 [docs/wechat-bot.md](docs/wechat-bot.md)。普通群机器人只能单向推送，不能接收你的追问；交互式问答需要后续单独接企业微信应用、公众号或自建回调服务。
+第三步，如果要邮件推送，在同一个 `Secrets` 标签页继续新增 SMTP 配置。最少需要 `EMAIL_SMTP_HOST`、`EMAIL_USERNAME`、`EMAIL_PASSWORD`、`EMAIL_FROM`、`EMAIL_TO`。Gmail、QQ 邮箱、Outlook 等通常要填应用专用密码，不要填网页登录密码。
 
 如果你不想手工写 `PORTFOLIO_JSON`，可以把 [docs/portfolio-input-template.md](docs/portfolio-input-template.md) 里的提示词发给 AI，再附上持仓截图或表格，让 AI 只负责整理出可复制的 JSON。
 
-如果你想一次性填持仓、微信和新闻源，可以打开 [docs/config-wizard.html](docs/config-wizard.html)。这个页面会在浏览器本地生成 `PORTFOLIO_JSON` 和 `gh secret set` 命令，方便一次性写入 GitHub Secrets。
+如果你想一次性填持仓、邮箱和新闻源，可以打开 [docs/config-wizard.html](docs/config-wizard.html)。这个页面会在浏览器本地生成 `PORTFOLIO_JSON` 和 `gh secret set` 命令，方便一次性写入 GitHub Secrets。
 
 ## GitHub Secrets 照填表
 
@@ -21,7 +21,12 @@ Stock-EGON 是一个股票研究辅助项目，当前包含两部分：基于 AK
 | Name | Secret 填什么 | 是否必填 | 放在哪里 |
 |---|---|---:|---|
 | `PORTFOLIO_JSON` | 你的完整持仓 JSON | 是 | Secrets |
-| `WECHAT_WEBHOOK_URL` | 企业微信群机器人 webhook 完整 URL | 否 | Secrets |
+| `EMAIL_SMTP_HOST` | SMTP 服务器，例如 `smtp.gmail.com` | 邮件必填 | Secrets |
+| `EMAIL_SMTP_PORT` | SMTP 端口，通常是 `587` | 邮件必填 | Secrets |
+| `EMAIL_USERNAME` | 发件邮箱账号 | 邮件必填 | Secrets |
+| `EMAIL_PASSWORD` | 发件邮箱应用专用密码 | 邮件必填 | Secrets |
+| `EMAIL_FROM` | 发件邮箱地址 | 邮件必填 | Secrets |
+| `EMAIL_TO` | 收件邮箱地址，多个用逗号分隔 | 邮件必填 | Secrets |
 | `SERPAPI_API_KEY` | SerpAPI 新闻搜索 key | 否 | Secrets |
 | `TAVILY_API_KEY` | Tavily 新闻搜索 key | 否 | Secrets |
 | `BRAVE_API_KEY` | Brave Search key | 否 | Secrets |
@@ -44,7 +49,7 @@ Stock-EGON 是一个股票研究辅助项目，当前包含两部分：基于 AK
 }
 ```
 
-手动运行方式：进入 GitHub `Actions` -> `US Stock Portfolio Report` -> `Run workflow`，`report_type` 选择 `daily` 或 `weekly`。运行完成后，可以在日志里看到 JSON，也可以在 `Artifacts` 下载 `us-stock-report`；配置了 `WECHAT_WEBHOOK_URL` 时，群里会收到 Markdown 版本报告。
+手动运行方式：进入 GitHub `Actions` -> `US Stock Portfolio Report` -> `Run workflow`，`report_type` 选择 `daily` 或 `weekly`。运行完成后，可以在日志里看到 JSON，也可以在 `Artifacts` 下载 `us-stock-report`；配置了邮件 SMTP 后，收件邮箱会收到纯文本报告。
 
 ## 本地快速开始
 
@@ -100,11 +105,13 @@ python scripts/us_weekly_review.py --portfolio-file config/portfolio.example.jso
 open docs/config-wizard.html
 ```
 
-推送已生成的美股报告到企业微信：
+通过邮件发送已生成的美股报告：
 
 ```bash
-WECHAT_WEBHOOK_URL="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxx" \
-python scripts/send_wechat_report.py --report-file reports/us-daily-report.json
+EMAIL_SMTP_HOST="smtp.example.com" EMAIL_SMTP_PORT="587" \
+EMAIL_USERNAME="bot@example.com" EMAIL_PASSWORD="app-password" \
+EMAIL_FROM="bot@example.com" EMAIL_TO="you@example.com" \
+python scripts/send_email_report.py --report-file reports/us-daily-report.json
 ```
 
 ## 输出结构
