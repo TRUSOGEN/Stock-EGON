@@ -21,7 +21,7 @@
 
 如果不想手工写 JSON，可以复制 [portfolio-input-template.md](portfolio-input-template.md) 里的提示词给 AI，再附上持仓截图或表格，让 AI 输出完整 `PORTFOLIO_JSON`。AI 只做数据整理，不应补充投资判断，也不应猜测看不清的数量。
 
-如果想一次性配置持仓、邮件、LLM 投研助理和新闻源，可以打开 [config-wizard.html](config-wizard.html)。它会在浏览器本地生成 `PORTFOLIO_JSON` 和 `gh secret set` 命令。复制生成的命令后，粘贴到本机终端执行即可，macOS 默认 zsh 或 bash 都可以；如果终端提示 GitHub CLI 未登录，先运行 `gh auth login`。
+如果想一次性配置持仓、邮件、LLM 投研助理和新闻源，可以打开 [config-wizard.html](config-wizard.html)。它会在浏览器本地生成 `PORTFOLIO_JSON`、Secrets `.env` 内容和一键终端脚本。复制生成的一键脚本后，粘贴到本机终端执行即可，脚本会通过 `gh secret set --repo TRUSOGEN/Stock-EGON -f -` 批量写入 GitHub Secrets。macOS 默认 zsh 或 bash 都可以；如果终端提示 GitHub CLI 未登录，先运行 `gh auth login`。
 
 ```json
 {
@@ -37,7 +37,7 @@
 
 ## 可选配置
 
-新闻源可配置 `SERPAPI_API_KEY`、`TAVILY_API_KEY`、`BRAVE_API_KEY`，也兼容逗号分隔的 `SERPAPI_API_KEYS`、`TAVILY_API_KEYS`、`BRAVE_API_KEYS`。当前运行顺序默认是 SerpAPI、Tavily、Brave；可通过 `NEWS_PROVIDER_ORDER=tavily,serpapi,brave` 调整。报告会把每只持仓的最新标题压缩进市场背景，并把 earnings、SEC、downgrade、Fed、inflation 等关键词映射为粗粒度风险标签。
+新闻源推荐配置 `ALPHA_VANTAGE_API_KEY`，使用 Alpha Vantage `NEWS_SENTIMENT` 按 ticker 拉取股票新闻。也可配置 `SERPAPI_API_KEY`、`TAVILY_API_KEY`、`BRAVE_API_KEY`，并兼容逗号分隔的 `SERPAPI_API_KEYS`、`TAVILY_API_KEYS`、`BRAVE_API_KEYS`。当前运行顺序默认是 Alpha Vantage、SerpAPI、Tavily、Brave；可通过 `NEWS_PROVIDER_ORDER=alphavantage,tavily,serpapi,brave` 调整。报告会把每只持仓的最新标题压缩进市场背景，并把 earnings、SEC、downgrade、Fed、inflation 等关键词映射为粗粒度风险标签。
 
 QQ 邮箱推送推荐只配置 `EMAIL_ADDRESS` 和 `EMAIL_AUTH_CODE`。`EMAIL_ADDRESS` 填 QQ 邮箱地址，`EMAIL_AUTH_CODE` 填 QQ 邮箱生成的 SMTP 授权码。workflow 会自动使用 `smtp.qq.com:587`，发件人和收件人默认都是 `EMAIL_ADDRESS`。这些值都应放在 GitHub Secrets。
 

@@ -1,7 +1,8 @@
 """美股新闻源 provider。
 
-本模块把外部搜索 API 统一成 `NewsItem` 列表。当前支持 SerpAPI、Tavily 和
-Brave Search；这些 provider 都通过运行时环境变量启用，不把任何 key 写进仓库。
+本模块把外部搜索 API 统一成 `NewsItem` 列表。当前支持 Alpha Vantage、
+SerpAPI、Tavily 和 Brave Search；这些 provider 都通过运行时环境变量启用，
+不把任何 key 写进仓库。
 """
 
 from __future__ import annotations
@@ -212,20 +213,71 @@ class BraveNewsProvider:
         return results
 
 
+class AlphaVantageNewsProvider:
+    """Alpha Vantage NEWS_SENTIMENT 股票新闻 provider。"""
+
+    provider_name = "alphavantage"
+
+    def __init__(self, api_key: str, *, get: Any | None = None, timeout: int = 10) -> None:
+        """保存 API key 和 HTTP client。"""
+        self.api_key = api_key
+        self.get = get or requests.get
+        self.timeout = timeout
+
+    def fetch_news(self, symbols: list[str]) -> dict[str, list[NewsItem]]:
+        """通过 Alpha Vantage NEWS_SENTIMENT 拉取 ticker 相关新闻。"""
+        results = {}
+        for symbol in symbols:
+            response = self.get(
+                "https://www.alphavantage.co/query",
+                params={
+                    "function": "NEWS_SENTIMENT",
+                    "tickers": symbol,
+                    "sort": "LATEST",
+                    "limit": 5,
+                    "apikey": self.api_key,
+                },
+                timeout=self.timeout,
+            )
+            response.raise_for_status()
+            payload = response.json()
+            items = []
+            for row in _as_list(payload.get("feed")):
+                title = _clean_text(row.get("title"))
+                if not title:
+                    continue
+                snippet = _clean_text(row.get("summary"))
+                items.append(
+                    NewsItem(
+                        symbol=symbol,
+                        title=title,
+                        source=_clean_text(row.get("source")) or "Alpha Vantage",
+                        url=_clean_text(row.get("url")),
+                        risk_flag=_infer_risk_flag(f"{title} {snippet}"),
+                        snippet=snippet,
+                    )
+                )
+            results[symbol] = items
+        return results
+
+
 def build_news_provider_from_env(env: Mapping[str, str] | None = None) -> NewsProvider:
     """根据环境变量构建新闻 provider。"""
     source = env or os.environ
     providers_by_name: dict[str, NewsProvider] = {}
+    alpha_vantage_keys = split_env_values(source.get("ALPHA_VANTAGE_API_KEY") or source.get("ALPHAVANTAGE_API_KEY"))
     serpapi_keys = split_env_values(source.get("SERPAPI_API_KEY") or source.get("SERPAPI_API_KEYS"))
     tavily_keys = split_env_values(source.get("TAVILY_API_KEY") or source.get("TAVILY_API_KEYS"))
     brave_keys = split_env_values(source.get("BRAVE_API_KEY") or source.get("BRAVE_API_KEYS"))
+    if alpha_vantage_keys:
+        providers_by_name["alphavantage"] = AlphaVantageNewsProvider(alpha_vantage_keys[0])
     if serpapi_keys:
         providers_by_name["serpapi"] = SerpAPINewsProvider(serpapi_keys[0])
     if tavily_keys:
         providers_by_name["tavily"] = TavilyNewsProvider(tavily_keys[0])
     if brave_keys:
         providers_by_name["brave"] = BraveNewsProvider(brave_keys[0])
-    order = split_env_values(source.get("NEWS_PROVIDER_ORDER")) or ["serpapi", "tavily", "brave"]
+    order = split_env_values(source.get("NEWS_PROVIDER_ORDER")) or ["alphavantage", "serpapi", "tavily", "brave"]
     providers = [providers_by_name[name] for name in order if name in providers_by_name]
     if not providers:
         return EmptyNewsProvider()
@@ -238,7 +290,16 @@ def news_provider_status(env: Mapping[str, str] | None = None) -> str:
     source = env or os.environ
     configured = [
         name
-        for name in ("SERPAPI_API_KEY", "SERPAPI_API_KEYS", "TAVILY_API_KEY", "TAVILY_API_KEYS", "BRAVE_API_KEY", "BRAVE_API_KEYS")
+        for name in (
+            "ALPHA_VANTAGE_API_KEY",
+            "ALPHAVANTAGE_API_KEY",
+            "SERPAPI_API_KEY",
+            "SERPAPI_API_KEYS",
+            "TAVILY_API_KEY",
+            "TAVILY_API_KEYS",
+            "BRAVE_API_KEY",
+            "BRAVE_API_KEYS",
+        )
         if source.get(name)
     ]
     if not configured:

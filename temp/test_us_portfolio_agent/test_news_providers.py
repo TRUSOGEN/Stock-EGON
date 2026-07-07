@@ -5,6 +5,7 @@ from __future__ import annotations
 import unittest
 
 from us_stock_agent.news import (
+    AlphaVantageNewsProvider,
     BraveNewsProvider,
     SerpAPINewsProvider,
     TavilyNewsProvider,
@@ -107,17 +108,48 @@ class TestNewsProviders(unittest.TestCase):
         self.assertEqual(result["SPY"][0].title, "Market awaits Fed decision")
         self.assertEqual(result["SPY"][0].source, "Macro Wire")
 
+    def test_alpha_vantage_provider_parses_news_sentiment_feed(self) -> None:
+        """Alpha Vantage NEWS_SENTIMENT feed 会解析为 NewsItem。"""
+        calls = []
+
+        def fake_get(url: str, **kwargs: object) -> FakeResponse:
+            calls.append((url, kwargs))
+            return FakeResponse(
+                {
+                    "feed": [
+                        {
+                            "title": "Nvidia earnings beat expectations",
+                            "url": "https://example.com/nvda-earnings",
+                            "source": "Market Wire",
+                            "summary": "Revenue guidance remains strong.",
+                        }
+                    ]
+                }
+            )
+
+        provider = AlphaVantageNewsProvider(api_key="key", get=fake_get)
+        result = provider.fetch_news(["NVDA"])
+
+        self.assertEqual(result["NVDA"][0].title, "Nvidia earnings beat expectations")
+        self.assertEqual(result["NVDA"][0].source, "Market Wire")
+        self.assertEqual(result["NVDA"][0].url, "https://example.com/nvda-earnings")
+        self.assertEqual(result["NVDA"][0].risk_flag, "earnings_event")
+        self.assertEqual(calls[0][1]["params"]["function"], "NEWS_SENTIMENT")
+        self.assertEqual(calls[0][1]["params"]["tickers"], "NVDA")
+        self.assertEqual(calls[0][1]["params"]["sort"], "LATEST")
+
     def test_build_news_provider_from_env_uses_configured_order(self) -> None:
         """环境变量会构建多 provider 聚合器。"""
         provider = build_news_provider_from_env(
             {
+                "ALPHA_VANTAGE_API_KEY": "alpha",
                 "SERPAPI_API_KEY": "serp",
                 "TAVILY_API_KEYS": "tav1,tav2",
-                "NEWS_PROVIDER_ORDER": "tavily,serpapi",
+                "NEWS_PROVIDER_ORDER": "alphavantage,tavily,serpapi",
             }
         )
 
-        self.assertEqual([item.provider_name for item in provider.providers], ["tavily", "serpapi"])
+        self.assertEqual([item.provider_name for item in provider.providers], ["alphavantage", "tavily", "serpapi"])
 
 
 if __name__ == "__main__":

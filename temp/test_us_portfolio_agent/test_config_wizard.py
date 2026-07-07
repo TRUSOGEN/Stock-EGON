@@ -21,6 +21,7 @@ class TestConfigWizard(unittest.TestCase):
             "serpapiKey",
             "tavilyKey",
             "braveKey",
+            "alphaVantageKey",
             "emailTo",
             "emailSmtpHost",
             "emailPassword",
@@ -44,9 +45,13 @@ class TestConfigWizard(unittest.TestCase):
             "LLM_BASE_URL",
             "LLM_MODEL",
             "DEEPSEEK_API_KEY",
+            "ALPHA_VANTAGE_API_KEY",
             "SERPAPI_API_KEY",
             "TAVILY_API_KEY",
             "BRAVE_API_KEY",
+            "secretEnvFile",
+            "oneShotSecretScript",
+            "gh secret set --repo ${repo} -f -",
             "gh secret set",
         ):
             self.assertIn(expected, html)

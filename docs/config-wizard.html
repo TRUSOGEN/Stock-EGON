@@ -371,6 +371,10 @@
             <h2>新闻源</h2>
             <div class="grid">
               <label>
+                Alpha Vantage key
+                <input id="alphaVantageKey" autocomplete="off" />
+              </label>
+              <label>
                 SerpAPI key
                 <input id="serpapiKey" autocomplete="off" />
               </label>
@@ -384,7 +388,7 @@
               </label>
               <label>
                 新闻源顺序
-                <input id="newsProviderOrder" value="serpapi,tavily,brave" />
+                <input id="newsProviderOrder" value="alphavantage,serpapi,tavily,brave" />
               </label>
             </div>
           </section>
@@ -401,7 +405,25 @@
 
           <div class="panel section">
             <div class="output-head">
-              <h2>GitHub Secrets 命令</h2>
+              <h2>一键终端脚本</h2>
+              <button type="button" data-copy="oneShotSecretScript">复制</button>
+            </div>
+            <textarea id="oneShotSecretScript" readonly></textarea>
+            <p class="note">把这段脚本整段粘贴到已登录 GitHub CLI 的终端里执行。它会通过 stdin 批量写入 GitHub Secrets。</p>
+          </div>
+
+          <div class="panel section">
+            <div class="output-head">
+              <h2>Secrets .env 内容</h2>
+              <button type="button" data-copy="secretEnvFile">复制</button>
+            </div>
+            <textarea id="secretEnvFile" readonly></textarea>
+            <p class="note">也可以把这段内容保存为本地临时文件，再运行 gh secret set --repo TRUSOGEN/Stock-EGON -f 文件名。</p>
+          </div>
+
+          <div class="panel section">
+            <div class="output-head">
+              <h2>逐条 GitHub Secrets 命令</h2>
               <button type="button" data-copy="secretCommands">复制</button>
             </div>
             <textarea id="secretCommands" readonly></textarea>
@@ -471,8 +493,13 @@
         return `'${String(value).replaceAll("'", "'\"'\"'")}'`;
       }
 
-      function buildSecretCommands(portfolioJson) {
-        const pairs = [["PORTFOLIO_JSON", portfolioJson]];
+      function dotenvQuote(value) {
+        return JSON.stringify(String(value));
+      }
+
+      function buildSecretPairs(portfolioJson) {
+        const compactPortfolioJson = JSON.stringify(JSON.parse(portfolioJson));
+        const pairs = [["PORTFOLIO_JSON", compactPortfolioJson]];
         const optional = [
           ["EMAIL_ADDRESS", document.getElementById("emailAddress").value],
           ["EMAIL_AUTH_CODE", document.getElementById("emailAuthCode").value],
@@ -489,6 +516,7 @@
           ["LLM_API_KEY", document.getElementById("llmApiKey").value],
           ["LLM_BASE_URL", document.getElementById("llmBaseUrl").value],
           ["LLM_MODEL", document.getElementById("llmModel").value],
+          ["ALPHA_VANTAGE_API_KEY", document.getElementById("alphaVantageKey").value],
           ["SERPAPI_API_KEY", document.getElementById("serpapiKey").value],
           ["TAVILY_API_KEY", document.getElementById("tavilyKey").value],
           ["BRAVE_API_KEY", document.getElementById("braveKey").value],
@@ -497,6 +525,18 @@
         optional.forEach(([name, value]) => {
           if (String(value || "").trim()) pairs.push([name, String(value).trim()]);
         });
+        return pairs;
+      }
+
+      function buildSecretEnvFile(pairs) {
+        return pairs.map(([name, value]) => `${name}=${dotenvQuote(value)}`).join("\n");
+      }
+
+      function buildOneShotSecretScript(envFile) {
+        return `gh secret set --repo ${repo} -f - <<'STOCK_EGON_SECRETS'\n${envFile}\nSTOCK_EGON_SECRETS`;
+      }
+
+      function buildSecretCommands(pairs) {
         return pairs
           .map(([name, value]) => `gh secret set ${name} --repo ${repo} --body ${shellQuote(value)}`)
           .join("\n");
@@ -506,8 +546,12 @@
         try {
           const portfolio = buildPortfolio();
           const portfolioJson = JSON.stringify(portfolio, null, 2);
+          const pairs = buildSecretPairs(portfolioJson);
+          const envFile = buildSecretEnvFile(pairs);
           document.getElementById("portfolioJson").value = portfolioJson;
-          document.getElementById("secretCommands").value = buildSecretCommands(portfolioJson);
+          document.getElementById("secretEnvFile").value = envFile;
+          document.getElementById("oneShotSecretScript").value = buildOneShotSecretScript(envFile);
+          document.getElementById("secretCommands").value = buildSecretCommands(pairs);
           errorBox.classList.remove("visible");
           errorBox.textContent = "";
         } catch (error) {

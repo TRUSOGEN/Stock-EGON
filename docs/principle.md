@@ -70,7 +70,7 @@ flowchart LR
 
 通知层只发送已经生成的报告，不参与评分、风控和数据抓取。默认 workflow 使用 SMTP 邮件推送；QQ 邮箱可通过 `EMAIL_ADDRESS` 和 `EMAIL_AUTH_CODE` 使用内置默认值，其他邮箱使用完整 SMTP 配置。LLM 增强层位于邮件发送前，只能基于规则报告改写文字，不得改变底层评分、风险位和动作标签；未配置 key 时跳过，已配置但调用失败时应失败退出。企业微信群机器人 webhook 只作为可选保留通道。交互式微信问答需要独立的消息接收服务、鉴权、审计和 agent API 调用链路。
 
-新闻层通过 `SERPAPI_API_KEY`、`TAVILY_API_KEY`、`BRAVE_API_KEY` 或对应复数 key 环境变量启用。provider 输出统一的 `NewsItem`，包含 ticker、标题、来源、URL、摘要和粗粒度风险标签。日报和周报只展示压缩后的新闻标题和风险提示，不保存新闻源 key 或 webhook。
+新闻层通过 `ALPHA_VANTAGE_API_KEY`、`SERPAPI_API_KEY`、`TAVILY_API_KEY`、`BRAVE_API_KEY` 或对应复数 key 环境变量启用。provider 输出统一的 `NewsItem`，包含 ticker、标题、来源、URL、摘要和粗粒度风险标签。日报和周报只展示压缩后的新闻标题和风险提示，不保存新闻源 key 或 webhook。
 
 ## 错误处理原则
 
