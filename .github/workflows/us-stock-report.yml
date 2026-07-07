@@ -33,10 +33,12 @@ jobs:
           SERPAPI_API_KEY: ${{ secrets.SERPAPI_API_KEY }}
           TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
           BRAVE_API_KEY: ${{ secrets.BRAVE_API_KEY }}
+          WECHAT_WEBHOOK_URL: ${{ secrets.WECHAT_WEBHOOK_URL || vars.WECHAT_WEBHOOK_URL }}
         run: |
           mkdir -p reports
           python scripts/us_daily_report.py > reports/us-daily-report.json
           cat reports/us-daily-report.json
+          python scripts/send_wechat_report.py --report-file reports/us-daily-report.json
       - name: Weekly review
         if: (github.event_name == 'schedule' && github.event.schedule == '0 1 * * 6') || (github.event_name == 'workflow_dispatch' && github.event.inputs.report_type == 'weekly')
         env:
@@ -44,10 +46,12 @@ jobs:
           SERPAPI_API_KEY: ${{ secrets.SERPAPI_API_KEY }}
           TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
           BRAVE_API_KEY: ${{ secrets.BRAVE_API_KEY }}
+          WECHAT_WEBHOOK_URL: ${{ secrets.WECHAT_WEBHOOK_URL || vars.WECHAT_WEBHOOK_URL }}
         run: |
           mkdir -p reports
           python scripts/us_weekly_review.py > reports/us-weekly-review.json
           cat reports/us-weekly-review.json
+          python scripts/send_wechat_report.py --report-file reports/us-weekly-review.json
       - name: Upload report artifact
         if: always()
         uses: actions/upload-artifact@v4

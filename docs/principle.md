@@ -31,6 +31,7 @@ flowchart LR
     G --> H["Decision Engine"]
     F --> H
     H --> I["Daily Report / Weekly Review"]
+    I --> J["Notification Adapter"]
 ```
 
 真实持仓、新闻源 token 和通知 webhook 应通过 GitHub Secrets、Codex automation prompt 或运行时环境变量注入，不应写入仓库。
@@ -47,6 +48,8 @@ flowchart LR
 
 `ActionRecommendation` 是美股持仓动作分层，动作包括 `add_candidate`、`trim_candidate`、`hold`、`watch`。这些动作是研究候选和复盘标签，不是无条件买入或卖出指令。
 
+`NotificationResult` 是外部通知层的发送结果，至少包含 `sent`、`skipped`、`reason`、`status_code` 和 `response`。未配置通知 webhook 时应显式返回 `skipped=true`，配置了 webhook 但发送失败时应暴露失败，避免报告系统假装已经触达用户。
+
 ## 功能边界
 
 多因子选股从成交额靠前候选池开始，默认不直接全市场逐只深度扫描，以控制请求量和源站压力。技术分权重来自均线、MACD、RSI、布林带和成交量，基础面分权重来自 PE、PB 和换手率。`multi_factor` 默认按技术分 65%、基础面分 35% 合成。
@@ -62,6 +65,8 @@ flowchart LR
 动作建议必须通过 guardrail。`add_candidate` 需要行情数据质量至少为 `medium`，并带有进入区间、风险位或失效条件；否则降级为 `watch`。数据质量等级包括 `high`、`medium`、`low`、`poor`、`unknown`，当 quote、daily bars、news 等来源给出多个质量等级时，以最差显式等级为准。
 
 组合风险必须在日报和周报中展示，至少包含单票集中度、现金不足和持仓数量。默认单票集中度阈值为 balanced 30%、aggressive 38%、conservative 22%；现金不足阈值为 balanced/conservative 5%、aggressive 3%。这些阈值用于风险提示，不用于自动交易。
+
+通知层只发送已经生成的报告，不参与评分、风控和数据抓取。企业微信群机器人 webhook 只承担单向推送；交互式微信问答需要独立的消息接收服务、鉴权、审计和 agent API 调用链路。
 
 ## 错误处理原则
 

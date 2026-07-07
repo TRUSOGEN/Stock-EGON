@@ -1,8 +1,38 @@
 # Stock-EGON
 
-本项目提供两个研究辅助工具：一个基于 AKShare 的 A 股量化分析 CLI，一个面向美股持仓的日报与周报 agent。工具定位是研究辅助与结构化复盘，不提供投资建议。
+Stock-EGON 是一个股票研究辅助项目，当前包含两部分：基于 AKShare 的 A 股量化分析 CLI，以及面向真实美股持仓的日报、周报、企业微信推送工作流。项目用于研究复盘和风险提示，不提供投资建议、交易指令或自动交易。
 
-## 快速开始
+## 你要做的三件事
+
+第一步，把仓库保留在 GitHub 私有仓库里，然后打开 `Actions` 页面启用 `US Stock Portfolio Report` workflow。这个 workflow 会在北京时间周二到周六 08:30 生成日报，在北京时间周六 09:00 生成周报，也可以手动运行。
+
+第二步，在 GitHub 仓库的 `Settings` -> `Secrets and variables` -> `Actions` 里新增 `PORTFOLIO_JSON`。真实持仓不要提交到仓库，推荐放到 Secrets；只做临时测试时可以放到 Repository Variables。
+
+第三步，如果要微信推送，在同一个位置新增 `WECHAT_WEBHOOK_URL`。这个值来自企业微信群机器人 webhook；配置后日报和周报会自动推送到群里。普通群机器人只能单向推送，不能接收你的追问；交互式问答需要后续单独接企业微信应用、公众号或自建回调服务。
+
+## 最小可用配置
+
+`PORTFOLIO_JSON` 示例：
+
+```json
+{
+  "currency": "USD",
+  "cash": 4.66,
+  "risk_profile": "aggressive",
+  "holdings": [
+    {"symbol": "MRVL", "quantity": 1, "cost_basis": null, "target_weight": null},
+    {"symbol": "NVDA", "quantity": 18, "cost_basis": null, "target_weight": null},
+    {"symbol": "QQQ", "quantity": 2.7365, "cost_basis": null, "target_weight": null},
+    {"symbol": "SPCX", "quantity": 13, "cost_basis": null, "target_weight": null},
+    {"symbol": "SPY", "quantity": 3, "cost_basis": null, "target_weight": null},
+    {"symbol": "TSLA", "quantity": 8, "cost_basis": null, "target_weight": null}
+  ]
+}
+```
+
+手动运行方式：进入 GitHub `Actions` -> `US Stock Portfolio Report` -> `Run workflow`，`report_type` 选择 `daily` 或 `weekly`。运行完成后，可以在日志里看到 JSON，也可以在 `Artifacts` 下载 `us-stock-report`；配置了 `WECHAT_WEBHOOK_URL` 时，群里会收到 Markdown 版本报告。
+
+## 本地快速开始
 
 安装依赖：
 
@@ -50,6 +80,13 @@ python scripts/us_daily_report.py --portfolio-file config/portfolio.example.json
 python scripts/us_weekly_review.py --portfolio-file config/portfolio.example.json
 ```
 
+推送已生成的美股报告到企业微信：
+
+```bash
+WECHAT_WEBHOOK_URL="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxx" \
+python scripts/send_wechat_report.py --report-file reports/us-daily-report.json
+```
+
 ## 输出结构
 
 所有 CLI 输出统一 JSON：
@@ -73,9 +110,9 @@ python scripts/us_weekly_review.py --portfolio-file config/portfolio.example.jso
 
 AKShare 是开源财经数据接口库，可以免费安装和使用；它聚合公开数据源，项目声明数据用于学术研究参考，不构成投资建议，并且部分接口可能因不可控因素被移除。美股工具默认使用 yfinance，yfinance 同样依赖 Yahoo Finance 公开数据，适合研究和个人复盘，不适合作为商业行情 SLA。生产级交易、合规披露或商业行情服务应使用有明确授权、稳定 SLA 和审计机制的数据源。
 
-## 远端部署建议
+## GitHub 定时推送
 
-本项目已提供 [.github/workflows/us-stock-report.yml](.github/workflows/us-stock-report.yml) 模板。推荐把代码推到 GitHub 私有仓库，在 GitHub Secrets 里配置 `PORTFOLIO_JSON`、新闻源 API key 和通知渠道，使用 GitHub Actions 定时运行，避免把真实持仓和密钥留在非本人电脑。详细部署说明见 [docs/us-stock-agent-deployment.md](docs/us-stock-agent-deployment.md)。
+本项目已提供 [.github/workflows/us-stock-report.yml](.github/workflows/us-stock-report.yml)。推荐把真实持仓、新闻源 API key 和通知 webhook 都放在 GitHub Secrets，使用 GitHub Actions 定时运行，避免把敏感信息留在非本人电脑。详细部署说明见 [docs/us-stock-agent-deployment.md](docs/us-stock-agent-deployment.md)，微信机器人说明见 [docs/wechat-bot.md](docs/wechat-bot.md)。
 
 ## 文档入口
 
