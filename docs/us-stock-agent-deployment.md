@@ -4,7 +4,7 @@
 
 本 agent 的目标是在非本机环境中定时生成美股持仓日报和周报。推荐部署到 GitHub 私有仓库，通过 GitHub Actions 定时运行，通过 Secrets/Variables 注入持仓、新闻源和通知配置。用户日常只需要维护 GitHub Secrets，不需要把真实持仓留在当前电脑。
 
-当前美股 agent 不依赖 Codex、OpenAI 或其他 LLM API。它是规则引擎，主要依赖 yfinance 行情、可选新闻搜索 provider、持仓配置和 SMTP 通知。任何人复用时都应 fork 仓库，并配置自己的 Secrets；不会也不能复用你的 Codex 登录态。
+当前美股 agent 的核心判断不依赖 Codex、OpenAI 或其他 LLM API。它是规则引擎，主要依赖 yfinance 行情、可选新闻搜索 provider、持仓配置和 SMTP 通知。LLM 投研助理是可选增强层，只在配置 key 后把规则报告改写成更适合邮件阅读的中文解释。任何人复用时都应 fork 仓库，并配置自己的 Secrets；不会也不能复用你的 Codex 登录态。
 
 ## 必填配置
 
@@ -21,7 +21,7 @@
 
 如果不想手工写 JSON，可以复制 [portfolio-input-template.md](portfolio-input-template.md) 里的提示词给 AI，再附上持仓截图或表格，让 AI 输出完整 `PORTFOLIO_JSON`。AI 只做数据整理，不应补充投资判断，也不应猜测看不清的数量。
 
-如果想一次性配置持仓、邮件和新闻源，可以打开 [config-wizard.html](config-wizard.html)。它会在浏览器本地生成 `PORTFOLIO_JSON` 和 `gh secret set` 命令。复制生成的命令后，粘贴到本机终端执行即可，macOS 默认 zsh 或 bash 都可以；如果终端提示 GitHub CLI 未登录，先运行 `gh auth login`。
+如果想一次性配置持仓、邮件、LLM 投研助理和新闻源，可以打开 [config-wizard.html](config-wizard.html)。它会在浏览器本地生成 `PORTFOLIO_JSON` 和 `gh secret set` 命令。复制生成的命令后，粘贴到本机终端执行即可，macOS 默认 zsh 或 bash 都可以；如果终端提示 GitHub CLI 未登录，先运行 `gh auth login`。
 
 ```json
 {
@@ -43,6 +43,8 @@ QQ 邮箱推送推荐只配置 `EMAIL_ADDRESS` 和 `EMAIL_AUTH_CODE`。`EMAIL_AD
 
 其他邮箱可继续配置完整 SMTP 字段：`EMAIL_SMTP_HOST`、`EMAIL_SMTP_PORT`、`EMAIL_USERNAME`、`EMAIL_PASSWORD`、`EMAIL_FROM`、`EMAIL_TO`。配置后 workflow 会在生成日报或周报 JSON 后调用 `scripts/send_email_report.py`，把 `data.report_markdown` 作为纯文本邮件发出。Gmail、QQ 邮箱、Outlook 等通常需要应用专用密码，不要填写网页登录密码。
 
+LLM 投研助理可选配置。DeepSeek 最简单，只需要在 Secrets 中配置 `DEEPSEEK_API_KEY`，系统会自动使用 `https://api.deepseek.com` 和 `deepseek-chat`。通用 OpenAI-compatible 服务可配置 `LLM_API_KEY`、`LLM_BASE_URL`、`LLM_MODEL`。为了兼容常见项目，也支持 `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`OPENAI_MODEL`。未配置 LLM key 时会跳过增强并发送规则报告；已配置 LLM key 但调用失败时，邮件任务会失败并显示错误，避免假装增强成功。细节见 [llm-config-guide.md](llm-config-guide.md)。
+
 企业微信推送脚本仍保留在 `scripts/send_wechat_report.py`，但默认 workflow 已改为邮件推送。如果后续重新使用企业微信群机器人，可以再配置 `WECHAT_WEBHOOK_URL` 并把 workflow 接回该脚本。
 
 普通企业微信群机器人只支持单向推送，不支持接收你的追问。后续如果要做到“报告发到微信，我直接问它为什么可以买、为什么要卖”，需要增加企业微信应用、公众号或自建 webhook callback 服务，具体边界见 [wechat-bot.md](wechat-bot.md)。
@@ -61,7 +63,7 @@ QQ 邮箱推送推荐只配置 `EMAIL_ADDRESS` 和 `EMAIL_AUTH_CODE`。`EMAIL_AD
 
 ## 输出与审计
 
-workflow 会把 JSON 报告打印到日志，并上传到 `us-stock-report` artifact。报告中的 `report_markdown` 是最终可读报告，外层 JSON 保留 `ok`、`source_api`、`warnings`、`errors` 等机器可读状态。邮件推送也会输出一个 `send_email_report` JSON，便于确认是已发送、已跳过还是 SMTP 失败。
+workflow 会把 JSON 报告打印到日志，并上传到 `us-stock-report` artifact。报告中的 `report_markdown` 是规则引擎报告，外层 JSON 保留 `ok`、`source_api`、`warnings`、`errors` 等机器可读状态。邮件推送会输出一个 `send_email_report` JSON，便于确认是已发送、已跳过、SMTP 失败，还是启用了 LLM 增强。
 
 ## 风控边界
 

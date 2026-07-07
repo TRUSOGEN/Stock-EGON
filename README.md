@@ -12,15 +12,15 @@ Stock-EGON 是一个股票研究辅助项目，当前包含两部分：基于 AK
 
 如果你不想手工写 `PORTFOLIO_JSON`，可以把 [docs/portfolio-input-template.md](docs/portfolio-input-template.md) 里的提示词发给 AI，再附上持仓截图或表格，让 AI 只负责整理出可复制的 JSON。
 
-如果你想一次性填持仓、邮箱和新闻源，可以打开 [docs/config-wizard.html](docs/config-wizard.html)。这个页面会在浏览器本地生成 `PORTFOLIO_JSON` 和 `gh secret set` 命令。生成后的命令可以直接复制到本机终端执行，macOS 默认 zsh 或 bash 都可以；如果终端提示没有登录 GitHub CLI，先运行 `gh auth login`。
+如果你想一次性填持仓、邮箱、LLM 投研助理和新闻源，可以打开 [docs/config-wizard.html](docs/config-wizard.html)。这个页面会在浏览器本地生成 `PORTFOLIO_JSON` 和 `gh secret set` 命令。生成后的命令可以直接复制到本机终端执行，macOS 默认 zsh 或 bash 都可以；如果终端提示没有登录 GitHub CLI，先运行 `gh auth login`。
 
 ## AI API 和复用边界
 
-当前美股日报和周报没有调用 Codex、OpenAI 或任何 LLM API。它是 Python 规则引擎：读取持仓，拉取行情和可选新闻源，按趋势、动量、组合风险和 guardrail 生成报告。所以别人复用这个项目时，不会用你的 Codex，也不需要你的 OpenAI key。
+当前美股日报和周报的核心判断仍然来自 Python 规则引擎：读取持仓，拉取行情和可选新闻源，按趋势、动量、组合风险和 guardrail 生成报告。LLM 投研助理是可选增强层，只在配置 key 后把规则报告改写成更适合邮件阅读的中文解释。所以别人复用这个项目时，不会用你的 Codex，也不需要你的 OpenAI key。
 
-别人要复用时，应 fork 仓库到自己的 GitHub 账号，并在自己的仓库 Secrets 里配置自己的 `PORTFOLIO_JSON`、邮箱 SMTP、新闻源 key。真实持仓、邮箱授权码和新闻源 key 都不应该写进代码。
+别人要复用时，应 fork 仓库到自己的 GitHub 账号，并在自己的仓库 Secrets 里配置自己的 `PORTFOLIO_JSON`、邮箱 SMTP、新闻源 key 和可选 LLM key。真实持仓、邮箱授权码、新闻源 key 和 LLM key 都不应该写进代码。
 
-后续如果要接 LLM 问答或更像投研助理的解释能力，应新增独立的 `OPENAI_API_KEY` 或兼容模型 key Secret。这个 key 由每个使用者自己配置，不能复用你的 Codex 登录态。
+GitHub Actions 不能复用你本机的 Codex 登录态。需要 LLM 增强时，推荐用 `DEEPSEEK_API_KEY` 直连 DeepSeek，或用 `LLM_API_KEY`、`LLM_BASE_URL`、`LLM_MODEL` 接 OpenAI-compatible 服务。也兼容 `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`OPENAI_MODEL` 这类常见命名。详细说明见 [docs/llm-config-guide.md](docs/llm-config-guide.md)。
 
 ## 暂停服务
 
@@ -43,11 +43,20 @@ Stock-EGON 是一个股票研究辅助项目，当前包含两部分：基于 AK
 | `EMAIL_PASSWORD` | 发件邮箱应用专用密码 | 其他邮箱可选 | Secrets |
 | `EMAIL_FROM` | 发件邮箱地址 | 其他邮箱可选 | Secrets |
 | `EMAIL_TO` | 收件邮箱地址，多个用逗号分隔 | 其他邮箱可选 | Secrets |
+| `DEEPSEEK_API_KEY` | DeepSeek API key，自动使用 `https://api.deepseek.com` 和 `deepseek-chat` | LLM 可选 | Secrets |
+| `LLM_API_KEY` | 通用 OpenAI-compatible API key | LLM 可选 | Secrets |
+| `LLM_BASE_URL` | 通用 OpenAI-compatible base URL | LLM 可选 | Secrets 或 Variables |
+| `LLM_MODEL` | 通用模型名，例如 `deepseek-chat` | LLM 可选 | Secrets 或 Variables |
+| `OPENAI_API_KEY` | 兼容 OpenAI 命名的 API key | LLM 可选 | Secrets |
+| `OPENAI_BASE_URL` | 兼容 OpenAI 命名的 base URL | LLM 可选 | Secrets 或 Variables |
+| `OPENAI_MODEL` | 兼容 OpenAI 命名的模型名 | LLM 可选 | Secrets 或 Variables |
 | `SERPAPI_API_KEY` | SerpAPI 新闻搜索 key | 否 | Secrets |
 | `TAVILY_API_KEY` | Tavily 新闻搜索 key | 否 | Secrets |
 | `BRAVE_API_KEY` | Brave Search key | 否 | Secrets |
 
 不要把持仓、邮箱密码和 API key 填到 `Variables`，因为 Variables 是明文配置；Secrets 才是加密配置。`REPORT_ENABLED=false` 这种非敏感开关可以放到 Variables。
+
+LLM 增强层只改写报告，不负责创造交易结论。未配置 LLM key 时会跳过增强并发送原始规则报告；已配置 LLM key 但请求失败时，邮件任务会失败并在 Actions 日志中暴露错误，避免你以为收到的是 AI 增强报告。
 
 ## 最小可用配置
 
@@ -128,6 +137,22 @@ EMAIL_ADDRESS="you@qq.com" EMAIL_AUTH_CODE="smtp-auth-code" \
 python scripts/send_email_report.py --report-file reports/us-daily-report.json
 ```
 
+使用 DeepSeek 增强后再发邮件：
+
+```bash
+DEEPSEEK_API_KEY="your-deepseek-key" \
+EMAIL_ADDRESS="you@qq.com" EMAIL_AUTH_CODE="smtp-auth-code" \
+python scripts/send_email_report.py --report-file reports/us-daily-report.json
+```
+
+使用通用 OpenAI-compatible 服务增强后再发邮件：
+
+```bash
+LLM_API_KEY="your-provider-key" LLM_BASE_URL="https://api.example.com/v1" LLM_MODEL="provider/model" \
+EMAIL_ADDRESS="you@qq.com" EMAIL_AUTH_CODE="smtp-auth-code" \
+python scripts/send_email_report.py --report-file reports/us-daily-report.json
+```
+
 使用完整 SMTP 配置发送已生成的美股报告：
 
 ```bash
@@ -166,4 +191,4 @@ AKShare 是开源财经数据接口库，可以免费安装和使用；它聚合
 
 ## 文档入口
 
-核心业务逻辑、数据流、评分规则、guardrail 和回测假设见 [docs/principle.md](docs/principle.md)。
+核心业务逻辑、数据流、评分规则、guardrail 和回测假设见 [docs/principle.md](docs/principle.md)。LLM 投研助理配置见 [docs/llm-config-guide.md](docs/llm-config-guide.md)。

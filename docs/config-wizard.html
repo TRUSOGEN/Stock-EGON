@@ -337,6 +337,29 @@
           </section>
 
           <section class="section">
+            <h2>LLM 投研助理</h2>
+            <div class="grid">
+              <label>
+                DeepSeek API key
+                <input id="deepseekApiKey" type="password" autocomplete="off" />
+              </label>
+              <label>
+                通用 LLM API key
+                <input id="llmApiKey" type="password" autocomplete="off" />
+              </label>
+              <label>
+                LLM base URL
+                <input id="llmBaseUrl" placeholder="https://api.deepseek.com" />
+              </label>
+              <label>
+                LLM model
+                <input id="llmModel" placeholder="deepseek-chat" />
+              </label>
+            </div>
+            <p>只用 DeepSeek 时填 DeepSeek API key 即可；其他 OpenAI-compatible 服务可填写通用 key、base URL 和 model。</p>
+          </section>
+
+          <section class="section">
             <h2>新闻源</h2>
             <div class="grid">
               <label>
@@ -452,6 +475,10 @@
           ["EMAIL_PASSWORD", document.getElementById("emailPassword").value],
           ["EMAIL_FROM", document.getElementById("emailFrom").value],
           ["EMAIL_USE_TLS", "true"],
+          ["DEEPSEEK_API_KEY", document.getElementById("deepseekApiKey").value],
+          ["LLM_API_KEY", document.getElementById("llmApiKey").value],
+          ["LLM_BASE_URL", document.getElementById("llmBaseUrl").value],
+          ["LLM_MODEL", document.getElementById("llmModel").value],
           ["SERPAPI_API_KEY", document.getElementById("serpapiKey").value],
           ["TAVILY_API_KEY", document.getElementById("tavilyKey").value],
           ["BRAVE_API_KEY", document.getElementById("braveKey").value],

@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """把已经生成的美股报告 JSON 通过 SMTP 邮件发送。
 
-脚本读取统一结果 JSON 中的 `data.report_markdown` 字段，并通过
+脚本读取统一结果 JSON 中的 `data.report_markdown` 字段，先按需调用
+OpenAI-compatible LLM 把报告改写成更适合邮件阅读的正文，再通过
 `EMAIL_ADDRESS`、`EMAIL_AUTH_CODE` 发送 QQ 邮箱纯文本邮件。其他邮箱可继续使用
 `EMAIL_SMTP_HOST`、`EMAIL_USERNAME`、`EMAIL_PASSWORD`、`EMAIL_FROM`、`EMAIL_TO`
 等完整 SMTP 环境变量。未配置 SMTP 时显式跳过，避免影响日报和周报生成。
@@ -18,6 +19,7 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from a_stock_quant.output import dumps_json, make_error_result, make_result
+from us_stock_agent.llm_enhancer import enhance_report_markdown
 from us_stock_agent.notifications import send_email_markdown
 
 
@@ -35,7 +37,9 @@ def main() -> int:
     try:
         report = _load_report(Path(args.report_file))
         markdown = _extract_markdown(report)
-        send_result = send_email_markdown(markdown, subject=args.subject or _default_subject(report))
+        llm_result = enhance_report_markdown(markdown, report=report)
+        send_result = send_email_markdown(llm_result.markdown, subject=args.subject or _default_subject(report))
+        send_result["llm_enhancement"] = llm_result.to_metadata()
         print(
             dumps_json(
                 make_result(
