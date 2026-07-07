@@ -6,7 +6,16 @@
 
 ## 必填配置
 
-`PORTFOLIO_JSON` 存放真实持仓，推荐放在 GitHub Secrets。如果只是测试，也可以临时放在 Repository Variables。路径是 GitHub 仓库页面的 `Settings` -> `Secrets and variables` -> `Actions` -> `New repository secret`。
+`PORTFOLIO_JSON` 存放真实持仓，必须放在 GitHub Secrets。路径是 GitHub 仓库页面的 `Settings` -> `Secrets and variables` -> `Actions`。进入页面后停留在 `Secrets` 标签页，找到 `Repository secrets`，点击 `New repository secret`。
+
+照下面填第一个 repository secret：
+
+| 表单字段 | 填写内容 |
+|---|---|
+| `Name` | `PORTFOLIO_JSON` |
+| `Secret` | 完整持仓 JSON，也就是下面示例这种对象 |
+
+不要填到 `Variables`。Variables 是明文配置，不适合真实持仓。
 
 如果不想手工写 JSON，可以复制 [portfolio-input-template.md](portfolio-input-template.md) 里的提示词给 AI，再附上持仓截图或表格，让 AI 输出完整 `PORTFOLIO_JSON`。AI 只做数据整理，不应补充投资判断，也不应猜测看不清的数量。
 
@@ -30,7 +39,7 @@
 
 新闻源后续可配置 `SERPAPI_API_KEY`、`TAVILY_API_KEY`、`BRAVE_API_KEY` 或自定义 `NEWS_API_KEY`。当前代码只检测配置状态，后续接入付费新闻源时在 `us_stock_agent/news.py` 新增 provider。
 
-企业微信推送可配置 `WECHAT_WEBHOOK_URL`，推荐放在 GitHub Secrets。获取方式是企业微信群右上角菜单 -> 群机器人 -> 添加机器人 -> 复制 webhook 地址。配置后 workflow 会在生成日报或周报 JSON 后调用 `scripts/send_wechat_report.py`，把 `data.report_markdown` 推送到群里。
+企业微信推送可配置 `WECHAT_WEBHOOK_URL`，也必须放在 GitHub Secrets。获取方式是企业微信群右上角菜单 -> 群机器人 -> 添加机器人 -> 复制 webhook 地址。配置时在同一个 `Secrets` 标签页点击 `New repository secret`，`Name` 填 `WECHAT_WEBHOOK_URL`，`Secret` 填完整 webhook URL。配置后 workflow 会在生成日报或周报 JSON 后调用 `scripts/send_wechat_report.py`，把 `data.report_markdown` 推送到群里。
 
 普通企业微信群机器人只支持单向推送，不支持接收你的追问。后续如果要做到“报告发到微信，我直接问它为什么可以买、为什么要卖”，需要增加企业微信应用、公众号或自建 webhook callback 服务，具体边界见 [wechat-bot.md](wechat-bot.md)。
 

@@ -6,11 +6,22 @@ Stock-EGON 是一个股票研究辅助项目，当前包含两部分：基于 AK
 
 第一步，把仓库保留在 GitHub 私有仓库里，然后打开 `Actions` 页面启用 `US Stock Portfolio Report` workflow。这个 workflow 会在北京时间周二到周六 08:30 生成日报，在北京时间周六 09:00 生成周报，也可以手动运行。
 
-第二步，在 GitHub 仓库的 `Settings` -> `Secrets and variables` -> `Actions` 里新增 `PORTFOLIO_JSON`。真实持仓不要提交到仓库，推荐放到 Secrets；只做临时测试时可以放到 Repository Variables。
+第二步，在 GitHub 仓库的 `Settings` -> `Secrets and variables` -> `Actions` 页面，停留在 `Secrets` 标签页，不要切到 `Variables`。点击 `New repository secret`，`Name` 填 `PORTFOLIO_JSON`，`Secret` 填下面“最小可用配置”里的完整 JSON。真实持仓不要提交到仓库，也不要放到 Variables。
 
-第三步，如果要微信推送，在同一个位置新增 `WECHAT_WEBHOOK_URL`。这个值来自企业微信群机器人 webhook；配置后日报和周报会自动推送到群里。普通群机器人只能单向推送，不能接收你的追问；交互式问答需要后续单独接企业微信应用、公众号或自建回调服务。
+第三步，如果要微信推送，在同一个 `Secrets` 标签页再点一次 `New repository secret`。`Name` 填 `WECHAT_WEBHOOK_URL`，`Secret` 填企业微信群机器人复制出来的完整 webhook 地址。配置后日报和周报会自动推送到群里。普通群机器人只能单向推送，不能接收你的追问；交互式问答需要后续单独接企业微信应用、公众号或自建回调服务。
 
 如果你不想手工写 `PORTFOLIO_JSON`，可以把 [docs/portfolio-input-template.md](docs/portfolio-input-template.md) 里的提示词发给 AI，再附上持仓截图或表格，让 AI 只负责整理出可复制的 JSON。
+
+## GitHub Secrets 照填表
+
+在 `Actions secrets and variables` 页面里，只使用 `Repository secrets`。点击 `New repository secret` 后按下表填写：
+
+| Name | Secret 填什么 | 是否必填 | 放在哪里 |
+|---|---|---:|---|
+| `PORTFOLIO_JSON` | 你的完整持仓 JSON | 是 | Secrets |
+| `WECHAT_WEBHOOK_URL` | 企业微信群机器人 webhook 完整 URL | 否 | Secrets |
+
+不要把这两个值填到 `Variables`，因为 Variables 是明文配置；Secrets 才是加密配置。
 
 ## 最小可用配置
 
