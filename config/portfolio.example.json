@@ -1,14 +1,21 @@
 {
   "currency": "USD",
-  "cash": 0,
+  "cash": 10000,
   "risk_profile": "balanced",
   "holdings": [
     {
-      "symbol": "NVDA",
-      "quantity": 1,
+      "symbol": "AAPL",
+      "quantity": 3,
       "cost_basis": null,
       "target_weight": null,
-      "note": "示例字段，请用 GitHub Secret 或运行时参数替换真实持仓"
+      "note": "公开示例假数据，请用 GitHub Secret 或运行时参数替换真实持仓"
+    },
+    {
+      "symbol": "MSFT",
+      "quantity": 2,
+      "cost_basis": null,
+      "target_weight": null,
+      "note": "公开示例假数据，请用 GitHub Secret 或运行时参数替换真实持仓"
     }
   ]
 }

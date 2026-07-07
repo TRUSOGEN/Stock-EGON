@@ -19,25 +19,23 @@
 
 如果不想手工写 JSON，可以复制 [portfolio-input-template.md](portfolio-input-template.md) 里的提示词给 AI，再附上持仓截图或表格，让 AI 输出完整 `PORTFOLIO_JSON`。AI 只做数据整理，不应补充投资判断，也不应猜测看不清的数量。
 
+如果想一次性配置持仓、企业微信和新闻源，可以打开 [config-wizard.html](config-wizard.html)。它会在浏览器本地生成 `PORTFOLIO_JSON` 和 `gh secret set` 命令，方便直接写入 GitHub Secrets。
+
 ```json
 {
   "currency": "USD",
   "cash": 4.66,
   "risk_profile": "aggressive",
   "holdings": [
-    {"symbol": "MRVL", "quantity": 1, "cost_basis": null, "target_weight": null},
-    {"symbol": "NVDA", "quantity": 18, "cost_basis": null, "target_weight": null},
-    {"symbol": "QQQ", "quantity": 2.7365, "cost_basis": null, "target_weight": null},
-    {"symbol": "SPCX", "quantity": 13, "cost_basis": null, "target_weight": null},
-    {"symbol": "SPY", "quantity": 3, "cost_basis": null, "target_weight": null},
-    {"symbol": "TSLA", "quantity": 8, "cost_basis": null, "target_weight": null}
+    {"symbol": "AAPL", "quantity": 3, "cost_basis": null, "target_weight": null},
+    {"symbol": "MSFT", "quantity": 2, "cost_basis": null, "target_weight": null}
   ]
 }
 ```
 
 ## 可选配置
 
-新闻源后续可配置 `SERPAPI_API_KEY`、`TAVILY_API_KEY`、`BRAVE_API_KEY` 或自定义 `NEWS_API_KEY`。当前代码只检测配置状态，后续接入付费新闻源时在 `us_stock_agent/news.py` 新增 provider。
+新闻源可配置 `SERPAPI_API_KEY`、`TAVILY_API_KEY`、`BRAVE_API_KEY`，也兼容逗号分隔的 `SERPAPI_API_KEYS`、`TAVILY_API_KEYS`、`BRAVE_API_KEYS`。当前运行顺序默认是 SerpAPI、Tavily、Brave；可通过 `NEWS_PROVIDER_ORDER=tavily,serpapi,brave` 调整。报告会把每只持仓的最新标题压缩进市场背景，并把 earnings、SEC、downgrade、Fed、inflation 等关键词映射为粗粒度风险标签。
 
 企业微信推送可配置 `WECHAT_WEBHOOK_URL`，也必须放在 GitHub Secrets。获取方式是企业微信群右上角菜单 -> 群机器人 -> 添加机器人 -> 复制 webhook 地址。配置时在同一个 `Secrets` 标签页点击 `New repository secret`，`Name` 填 `WECHAT_WEBHOOK_URL`，`Secret` 填完整 webhook URL。配置后 workflow 会在生成日报或周报 JSON 后调用 `scripts/send_wechat_report.py`，把 `data.report_markdown` 推送到群里。
 
@@ -57,4 +55,4 @@ workflow 会把 JSON 报告打印到日志，并上传到 `us-stock-report` arti
 
 ## 风控边界
 
-动作分层是研究标签，不是自动交易指令。`add_candidate` 必须通过数据质量与触发条件 guardrail；如果行情质量不足、新闻源缺失、缺少进入区间或失效条件，动作会降级为 `watch`。SPCX 是 ETF/基金代码，不能与私营公司 SpaceX 混用。
+动作分层是研究标签，不是自动交易指令。`add_candidate` 必须通过数据质量与触发条件 guardrail；如果行情质量不足、新闻源缺失、缺少进入区间或失效条件，动作会降级为 `watch`。没有公开 ticker 的私营公司不能当作股票代码写入持仓；只有券商持仓页明确显示 ticker 时才写入。

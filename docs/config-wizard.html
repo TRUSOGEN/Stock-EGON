@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Stock-EGON 配置向导</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #17201a;
+        --muted: #5e6b63;
+        --line: #d9e1da;
+        --paper: #fbfcfb;
+        --panel: #ffffff;
+        --accent: #0b6b4f;
+        --accent-2: #9a6b14;
+        --danger: #9f2f25;
+        --focus: #2e8a70;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          "Noto Sans SC", sans-serif;
+        line-height: 1.5;
+      }
+
+      main {
+        width: min(1180px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 32px 0 56px;
+      }
+
+      h1,
+      h2,
+      h3 {
+        margin: 0;
+        line-height: 1.15;
+      }
+
+      h1 {
+        max-width: 780px;
+        font-size: clamp(32px, 5vw, 58px);
+        letter-spacing: 0;
+      }
+
+      h2 {
+        font-size: 20px;
+      }
+
+      p {
+        margin: 8px 0 0;
+        color: var(--muted);
+      }
+
+      button,
+      input,
+      select,
+      textarea {
+        font: inherit;
+      }
+
+      button {
+        min-height: 38px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: var(--panel);
+        color: var(--ink);
+        cursor: pointer;
+      }
+
+      button.primary {
+        border-color: var(--accent);
+        background: var(--accent);
+        color: #fff;
+      }
+
+      button:focus-visible,
+      input:focus-visible,
+      select:focus-visible,
+      textarea:focus-visible {
+        outline: 3px solid color-mix(in srgb, var(--focus) 28%, transparent);
+        outline-offset: 2px;
+      }
+
+      .intro {
+        display: grid;
+        gap: 18px;
+        padding: 28px 0 24px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1.1fr) minmax(340px, 0.9fr);
+        gap: 20px;
+        align-items: start;
+        padding-top: 22px;
+      }
+
+      .panel {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel);
+      }
+
+      .section {
+        padding: 18px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .section:last-child {
+        border-bottom: 0;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 14px;
+      }
+
+      label {
+        display: grid;
+        gap: 6px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      input,
+      select,
+      textarea {
+        width: 100%;
+        min-height: 38px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #fff;
+        color: var(--ink);
+        padding: 8px 10px;
+      }
+
+      textarea {
+        min-height: 190px;
+        resize: vertical;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 13px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 14px;
+      }
+
+      th,
+      td {
+        border-bottom: 1px solid var(--line);
+        padding: 8px 6px;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      td input {
+        min-width: 0;
+      }
+
+      .row-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      .outputs {
+        position: sticky;
+        top: 16px;
+        display: grid;
+        gap: 14px;
+      }
+
+      .output-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 10px;
+      }
+
+      .note {
+        border-left: 4px solid var(--accent-2);
+        padding: 10px 12px;
+        background: #fff8e8;
+        color: #5c451c;
+        font-size: 13px;
+      }
+
+      .error {
+        display: none;
+        border-left: 4px solid var(--danger);
+        padding: 10px 12px;
+        background: #fff0ee;
+        color: var(--danger);
+        font-size: 13px;
+      }
+
+      .error.visible {
+        display: block;
+      }
+
+      @media (max-width: 900px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+
+        .outputs {
+          position: static;
+        }
+      }
+
+      @media (max-width: 640px) {
+        main {
+          width: min(100% - 20px, 1180px);
+          padding-top: 18px;
+        }
+
+        .grid {
+          grid-template-columns: 1fr;
+        }
+
+        th:nth-child(4),
+        td:nth-child(4),
+        th:nth-child(5),
+        td:nth-child(5) {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="intro">
+        <h1>Stock-EGON 配置向导</h1>
+        <p>在这个页面填持仓、微信 webhook 和新闻源 key，然后复制生成的 GitHub Secrets 命令。页面只在浏览器本地计算，不会上传你的配置。</p>
+      </section>
+
+      <div class="layout">
+        <form class="panel" id="wizardForm">
+          <section class="section">
+            <h2>组合账户</h2>
+            <div class="grid">
+              <label>
+                现金余额 USD
+                <input id="cash" type="number" step="0.01" value="0" />
+              </label>
+              <label>
+                风险偏好
+                <select id="riskProfile">
+                  <option value="aggressive">aggressive</option>
+                  <option value="balanced">balanced</option>
+                  <option value="conservative">conservative</option>
+                </select>
+              </label>
+            </div>
+          </section>
+
+          <section class="section">
+            <h2>持仓</h2>
+            <table aria-label="portfolio rows">
+              <thead>
+                <tr>
+                  <th>Ticker</th>
+                  <th>数量</th>
+                  <th>成本</th>
+                  <th>目标权重</th>
+                  <th>备注</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="portfolioRows"></tbody>
+            </table>
+            <div class="row-actions">
+              <button type="button" id="addHolding">添加持仓</button>
+              <button type="button" id="loadExample">填入假示例</button>
+            </div>
+          </section>
+
+          <section class="section">
+            <h2>微信推送</h2>
+            <label>
+              企业微信群机器人 webhook
+              <input id="wechatWebhookUrl" type="url" placeholder="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=..." />
+            </label>
+          </section>
+
+          <section class="section">
+            <h2>新闻源</h2>
+            <div class="grid">
+              <label>
+                SerpAPI key
+                <input id="serpapiKey" autocomplete="off" />
+              </label>
+              <label>
+                Tavily key
+                <input id="tavilyKey" autocomplete="off" />
+              </label>
+              <label>
+                Brave Search key
+                <input id="braveKey" autocomplete="off" />
+              </label>
+              <label>
+                新闻源顺序
+                <input id="newsProviderOrder" value="serpapi,tavily,brave" />
+              </label>
+            </div>
+          </section>
+        </form>
+
+        <aside class="outputs">
+          <div class="panel section">
+            <div class="output-head">
+              <h2>PORTFOLIO_JSON</h2>
+              <button type="button" data-copy="portfolioJson">复制</button>
+            </div>
+            <textarea id="portfolioJson" readonly></textarea>
+          </div>
+
+          <div class="panel section">
+            <div class="output-head">
+              <h2>GitHub Secrets 命令</h2>
+              <button type="button" data-copy="secretCommands">复制</button>
+            </div>
+            <textarea id="secretCommands" readonly></textarea>
+            <p class="note">这些命令需要在已登录 GitHub CLI 的终端里执行。不要把 key 或 webhook 提交进仓库。</p>
+          </div>
+
+          <div class="error" id="errorBox"></div>
+        </aside>
+      </div>
+    </main>
+
+    <script>
+      const repo = "TRUSOGEN/Stock-EGON";
+      const rows = document.getElementById("portfolioRows");
+      const errorBox = document.getElementById("errorBox");
+
+      function addRow(value = {}) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td><input data-field="symbol" value="${value.symbol || ""}" placeholder="AAPL" /></td>
+          <td><input data-field="quantity" type="number" step="0.0001" value="${value.quantity || ""}" /></td>
+          <td><input data-field="cost_basis" type="number" step="0.01" value="${value.cost_basis || ""}" placeholder="可空" /></td>
+          <td><input data-field="target_weight" type="number" step="0.01" value="${value.target_weight || ""}" placeholder="可空" /></td>
+          <td><input data-field="note" value="${value.note || ""}" placeholder="可空" /></td>
+          <td><button type="button" data-remove>删除</button></td>
+        `;
+        rows.appendChild(tr);
+      }
+
+      function readNumber(value, fieldName, required) {
+        const trimmed = String(value || "").trim();
+        if (!trimmed) {
+          if (required) throw new Error(`${fieldName} 不能为空`);
+          return null;
+        }
+        const parsed = Number(trimmed);
+        if (!Number.isFinite(parsed)) throw new Error(`${fieldName} 必须是数字`);
+        return parsed;
+      }
+
+      function buildPortfolio() {
+        const holdings = Array.from(rows.querySelectorAll("tr")).map((tr, index) => {
+          const data = {};
+          tr.querySelectorAll("[data-field]").forEach((input) => {
+            data[input.dataset.field] = input.value;
+          });
+          const symbol = String(data.symbol || "").trim().toUpperCase();
+          if (!symbol) throw new Error(`第 ${index + 1} 行 ticker 不能为空`);
+          return {
+            symbol,
+            quantity: readNumber(data.quantity, `${symbol} 数量`, true),
+            cost_basis: readNumber(data.cost_basis, `${symbol} 成本`, false),
+            target_weight: readNumber(data.target_weight, `${symbol} 目标权重`, false),
+            note: String(data.note || "").trim() || null,
+          };
+        });
+        if (!holdings.length) throw new Error("至少需要一条持仓");
+        return {
+          currency: "USD",
+          cash: readNumber(document.getElementById("cash").value, "现金余额", true),
+          risk_profile: document.getElementById("riskProfile").value,
+          holdings,
+        };
+      }
+
+      function shellQuote(value) {
+        return `'${String(value).replaceAll("'", "'\"'\"'")}'`;
+      }
+
+      function buildSecretCommands(portfolioJson) {
+        const pairs = [["PORTFOLIO_JSON", portfolioJson]];
+        const optional = [
+          ["WECHAT_WEBHOOK_URL", document.getElementById("wechatWebhookUrl").value],
+          ["SERPAPI_API_KEY", document.getElementById("serpapiKey").value],
+          ["TAVILY_API_KEY", document.getElementById("tavilyKey").value],
+          ["BRAVE_API_KEY", document.getElementById("braveKey").value],
+          ["NEWS_PROVIDER_ORDER", document.getElementById("newsProviderOrder").value],
+        ];
+        optional.forEach(([name, value]) => {
+          if (String(value || "").trim()) pairs.push([name, String(value).trim()]);
+        });
+        return pairs
+          .map(([name, value]) => `gh secret set ${name} --repo ${repo} --body ${shellQuote(value)}`)
+          .join("\n");
+      }
+
+      function refresh() {
+        try {
+          const portfolio = buildPortfolio();
+          const portfolioJson = JSON.stringify(portfolio, null, 2);
+          document.getElementById("portfolioJson").value = portfolioJson;
+          document.getElementById("secretCommands").value = buildSecretCommands(portfolioJson);
+          errorBox.classList.remove("visible");
+          errorBox.textContent = "";
+        } catch (error) {
+          errorBox.textContent = error.message;
+          errorBox.classList.add("visible");
+        }
+      }
+
+      document.getElementById("wizardForm").addEventListener("input", refresh);
+      document.getElementById("addHolding").addEventListener("click", () => {
+        addRow();
+        refresh();
+      });
+      document.getElementById("loadExample").addEventListener("click", () => {
+        rows.innerHTML = "";
+        addRow({ symbol: "AAPL", quantity: 3 });
+        addRow({ symbol: "MSFT", quantity: 2 });
+        document.getElementById("cash").value = "10000";
+        document.getElementById("riskProfile").value = "balanced";
+        refresh();
+      });
+      rows.addEventListener("click", (event) => {
+        if (event.target.matches("[data-remove]")) {
+          event.target.closest("tr").remove();
+          refresh();
+        }
+      });
+      document.querySelectorAll("[data-copy]").forEach((button) => {
+        button.addEventListener("click", async () => {
+          const target = document.getElementById(button.dataset.copy);
+          await navigator.clipboard.writeText(target.value);
+          button.textContent = "已复制";
+          setTimeout(() => {
+            button.textContent = "复制";
+          }, 1200);
+        });
+      });
+
+      addRow({ symbol: "AAPL", quantity: 3 });
+      addRow({ symbol: "MSFT", quantity: 2 });
+      refresh();
+    </script>
+  </body>
+</html>

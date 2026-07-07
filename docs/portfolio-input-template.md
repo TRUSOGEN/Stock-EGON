@@ -16,12 +16,12 @@
 2. cash 填账户现金余额，如果看不到现金余额就填 0。
 3. risk_profile 只能是 "conservative"、"balanced"、"aggressive" 三选一；如果我没有说明风险偏好，默认填 "aggressive"。
 4. holdings 是数组，每个持仓包含 symbol、quantity、cost_basis、target_weight。
-5. symbol 使用美股 ticker，大写，不要包含交易所后缀，例如 NVDA、TSLA、QQQ、SPY。
+5. symbol 使用美股 ticker，大写，不要包含交易所后缀，例如 AAPL、MSFT、VOO、IWM。
 6. quantity 使用数字，允许小数。
 7. cost_basis 如果截图里看不到持仓成本或平均成本，填 null。
 8. target_weight 如果我没有明确给目标权重，填 null。
 9. 不要把当日盈亏、市值、涨跌幅、名称、交易所、币种文字写进 holdings。
-10. 如果截图里出现 SpaceX 但没有公开 ticker，请不要写成股票代码；如果是 SPCX ETF，就保留 "SPCX"。
+10. 如果截图里出现没有公开 ticker 的私营公司，请不要凭公司名编造股票代码；只有截图中明确给出 ticker 时才写入。
 
 请严格输出如下结构：
 {
@@ -29,7 +29,7 @@
   "cash": 0,
   "risk_profile": "aggressive",
   "holdings": [
-    {"symbol": "NVDA", "quantity": 18, "cost_basis": null, "target_weight": null}
+    {"symbol": "AAPL", "quantity": 3, "cost_basis": null, "target_weight": null}
   ]
 }
 ```
@@ -56,12 +56,8 @@ AI 输出必须是一个合法 JSON 对象，不能带 Markdown 代码块。`hol
   "cash": 4.66,
   "risk_profile": "aggressive",
   "holdings": [
-    {"symbol": "MRVL", "quantity": 1, "cost_basis": null, "target_weight": null},
-    {"symbol": "NVDA", "quantity": 18, "cost_basis": null, "target_weight": null},
-    {"symbol": "QQQ", "quantity": 2.7365, "cost_basis": null, "target_weight": null},
-    {"symbol": "SPCX", "quantity": 13, "cost_basis": null, "target_weight": null},
-    {"symbol": "SPY", "quantity": 3, "cost_basis": null, "target_weight": null},
-    {"symbol": "TSLA", "quantity": 8, "cost_basis": null, "target_weight": null}
+    {"symbol": "AAPL", "quantity": 3, "cost_basis": null, "target_weight": null},
+    {"symbol": "MSFT", "quantity": 2, "cost_basis": null, "target_weight": null}
   ]
 }
 ```

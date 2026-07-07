@@ -1,0 +1,36 @@
+"""配置向导静态网页的结构测试。"""
+
+from __future__ import annotations
+
+import unittest
+from pathlib import Path
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+
+class TestConfigWizard(unittest.TestCase):
+    """验证配置向导覆盖一次性配置所需字段。"""
+
+    def test_config_wizard_exposes_required_configuration_fields(self) -> None:
+        """静态网页必须能生成持仓、微信和新闻源配置。"""
+        html = (PROJECT_ROOT / "docs" / "config-wizard.html").read_text(encoding="utf-8")
+
+        for expected in (
+            "portfolioRows",
+            "wechatWebhookUrl",
+            "serpapiKey",
+            "tavilyKey",
+            "braveKey",
+            "PORTFOLIO_JSON",
+            "WECHAT_WEBHOOK_URL",
+            "SERPAPI_API_KEY",
+            "TAVILY_API_KEY",
+            "BRAVE_API_KEY",
+            "gh secret set",
+        ):
+            self.assertIn(expected, html)
+
+
+if __name__ == "__main__":
+    unittest.main()

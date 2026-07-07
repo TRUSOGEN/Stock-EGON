@@ -7,7 +7,7 @@ from a_stock_quant.output import make_result
 from .decision import classify_action, score_position
 from .guardrails import TriggerLevels, apply_action_guardrail
 from .market_data import MarketDataProvider, YFinanceProvider
-from .news import EmptyNewsProvider, news_provider_status
+from .news import NewsItem, build_news_provider_from_env, news_provider_status
 from .portfolio import build_portfolio_view
 from .quality import assess_history_quality, normalize_data_quality
 from .reports import render_daily_report, render_weekly_review
@@ -28,7 +28,7 @@ def run_report(
     histories = {symbol: provider.fetch_history(symbol, period="6mo") for symbol in symbols}
     view = build_portfolio_view(portfolio, snapshots)
     portfolio_risk = assess_portfolio_risk(view, risk_profile=portfolio.risk_profile)
-    news = EmptyNewsProvider().fetch_news(symbols)
+    news = build_news_provider_from_env().fetch_news(symbols)
     scored_actions = []
     for position in view.positions:
         risk_flags = [item.risk_flag for item in news[position.symbol] if item.risk_flag]
@@ -56,6 +56,7 @@ def run_report(
         scored_actions.append((score, action))
 
     market_notes = [news_provider_status()]
+    market_notes.extend(_format_news_notes(news))
     if report_type == "weekly":
         report = render_weekly_review(
             view=view,
@@ -100,3 +101,14 @@ def _build_trigger_levels(symbol: str, history) -> TriggerLevels:
         target_price=target_price,
         invalidation=f"{symbol} 跌破 {stop_loss:.2f} 或重大负面事件被确认",
     )
+
+
+def _format_news_notes(news: dict[str, list[NewsItem]]) -> list[str]:
+    """把新闻条目压缩为日报和周报中的市场背景要点。"""
+    notes = []
+    for symbol, items in news.items():
+        if not items:
+            continue
+        top_titles = "；".join(item.title for item in items[:2])
+        notes.append(f"{symbol} 最新资讯: {top_titles}")
+    return notes

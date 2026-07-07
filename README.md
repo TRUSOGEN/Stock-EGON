@@ -12,6 +12,8 @@ Stock-EGON 是一个股票研究辅助项目，当前包含两部分：基于 AK
 
 如果你不想手工写 `PORTFOLIO_JSON`，可以把 [docs/portfolio-input-template.md](docs/portfolio-input-template.md) 里的提示词发给 AI，再附上持仓截图或表格，让 AI 只负责整理出可复制的 JSON。
 
+如果你想一次性填持仓、微信和新闻源，可以打开 [docs/config-wizard.html](docs/config-wizard.html)。这个页面会在浏览器本地生成 `PORTFOLIO_JSON` 和 `gh secret set` 命令，方便一次性写入 GitHub Secrets。
+
 ## GitHub Secrets 照填表
 
 在 `Actions secrets and variables` 页面里，只使用 `Repository secrets`。点击 `New repository secret` 后按下表填写：
@@ -20,6 +22,9 @@ Stock-EGON 是一个股票研究辅助项目，当前包含两部分：基于 AK
 |---|---|---:|---|
 | `PORTFOLIO_JSON` | 你的完整持仓 JSON | 是 | Secrets |
 | `WECHAT_WEBHOOK_URL` | 企业微信群机器人 webhook 完整 URL | 否 | Secrets |
+| `SERPAPI_API_KEY` | SerpAPI 新闻搜索 key | 否 | Secrets |
+| `TAVILY_API_KEY` | Tavily 新闻搜索 key | 否 | Secrets |
+| `BRAVE_API_KEY` | Brave Search key | 否 | Secrets |
 
 不要把这两个值填到 `Variables`，因为 Variables 是明文配置；Secrets 才是加密配置。
 
@@ -33,12 +38,8 @@ Stock-EGON 是一个股票研究辅助项目，当前包含两部分：基于 AK
   "cash": 4.66,
   "risk_profile": "aggressive",
   "holdings": [
-    {"symbol": "MRVL", "quantity": 1, "cost_basis": null, "target_weight": null},
-    {"symbol": "NVDA", "quantity": 18, "cost_basis": null, "target_weight": null},
-    {"symbol": "QQQ", "quantity": 2.7365, "cost_basis": null, "target_weight": null},
-    {"symbol": "SPCX", "quantity": 13, "cost_basis": null, "target_weight": null},
-    {"symbol": "SPY", "quantity": 3, "cost_basis": null, "target_weight": null},
-    {"symbol": "TSLA", "quantity": 8, "cost_basis": null, "target_weight": null}
+    {"symbol": "AAPL", "quantity": 3, "cost_basis": null, "target_weight": null},
+    {"symbol": "MSFT", "quantity": 2, "cost_basis": null, "target_weight": null}
   ]
 }
 ```
@@ -91,6 +92,12 @@ python scripts/us_daily_report.py --portfolio-file config/portfolio.example.json
 
 ```bash
 python scripts/us_weekly_review.py --portfolio-file config/portfolio.example.json
+```
+
+本地打开配置向导：
+
+```bash
+open docs/config-wizard.html
 ```
 
 推送已生成的美股报告到企业微信：
