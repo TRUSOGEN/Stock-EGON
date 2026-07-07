@@ -1,0 +1,14 @@
+{
+  "currency": "USD",
+  "cash": 0,
+  "risk_profile": "balanced",
+  "holdings": [
+    {
+      "symbol": "NVDA",
+      "quantity": 1,
+      "cost_basis": null,
+      "target_weight": null,
+      "note": "示例字段，请用 GitHub Secret 或运行时参数替换真实持仓"
+    }
+  ]
+}
