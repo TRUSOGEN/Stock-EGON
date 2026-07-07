@@ -17,6 +17,7 @@ concurrency:
 
 jobs:
   report:
+    if: ${{ vars.REPORT_ENABLED != 'false' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:

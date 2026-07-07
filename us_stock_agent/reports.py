@@ -22,15 +22,15 @@ def render_daily_report(
         "",
         f"组合净值: {view.net_liquidation:,.2f} {view.currency} | 现金: {view.cash:,.2f} | 现金权重: {view.cash_weight:.2%}",
         "",
-        "## 今日核心结论",
+        "## 先看结论",
     ]
     buckets = _bucket_actions(scored_actions)
     lines.extend(
         [
-            f"- 增持候选: {_symbols_or_none(buckets['add_candidate'])}",
-            f"- 减持候选: {_symbols_or_none(buckets['trim_candidate'])}",
-            f"- 继续持有: {_symbols_or_none(buckets['hold'])}",
-            f"- 重点观察: {_symbols_or_none(buckets['watch'])}",
+            f"- 可以考虑加一点: {_symbols_or_none(buckets['add_candidate'])}",
+            f"- 需要减仓或复核: {_symbols_or_none(buckets['trim_candidate'])}",
+            f"- 先拿着: {_symbols_or_none(buckets['hold'])}",
+            f"- 先别动，只观察: {_symbols_or_none(buckets['watch'])}",
         ]
     )
     if market_notes:
@@ -40,24 +40,11 @@ def render_daily_report(
     if portfolio_risk:
         lines.extend(_portfolio_risk_section(portfolio_risk))
     lines.append("")
-    lines.append("## 持仓动作表")
-    lines.append("| Ticker | 动作 | 评分 | 权重 | 当日盈亏 | 浮动盈亏 | 主要理由 | 风控/触发条件 |")
-    lines.append("|---|---:|---:|---:|---:|---:|---|---|")
+    lines.append("## 每只持仓一句话")
     position_by_symbol = {position.symbol: position for position in view.positions}
-    for score, action in sorted(scored_actions, key=lambda item: item[0].total_score):
+    for score, action in sorted(scored_actions, key=lambda item: _action_sort_key(item[1].action)):
         position = position_by_symbol[score.symbol]
-        lines.append(
-            "| {symbol} | {label} | {score:.1f} | {weight:.2%} | {day_pnl} | {unrealized} | {reason} | {controls} |".format(
-                symbol=score.symbol,
-                label=action.label,
-                score=score.total_score,
-                weight=position.weight,
-                day_pnl=_money(position.day_pnl),
-                unrealized=_money(position.unrealized_pnl),
-                reason="；".join(action.rationale) or "暂无明确证据",
-                controls="；".join(action.risk_controls) or "暂无",
-            )
-        )
+        lines.extend(_position_plain_language_section(score, action, position))
     lines.extend(_source_limit_section())
     return "\n".join(lines)
 
@@ -111,11 +98,52 @@ def _symbols_or_none(symbols: list[str]) -> str:
     return ", ".join(symbols) if symbols else "无"
 
 
+def _position_plain_language_section(score: PositionScore, action: ActionRecommendation, position) -> list[str]:
+    """把单票动作写成适合邮件阅读的自然语言。"""
+    return [
+        "",
+        f"### {score.symbol} - {action.label}",
+        f"- 一句话: {_plain_action_sentence(action.action)}",
+        f"- 当前状态: 权重 {position.weight:.2%}，评分 {score.total_score:.1f}，当日盈亏 {_money_label(position.day_pnl)}，浮动盈亏 {_money_label(position.unrealized_pnl)}。",
+        f"- 为什么: {_join_or_none(action.rationale)}。",
+        f"- 怎么盯: {_join_or_none(action.risk_controls)}。",
+    ]
+
+
+def _plain_action_sentence(action: str) -> str:
+    """把动作标签翻译成更接近人话的解释。"""
+    if action == "add_candidate":
+        return "走势还可以，可以放进加仓候选，但等价格确认，别追高。"
+    if action == "trim_candidate":
+        return "风险或趋势不够好，先复核仓位，必要时减一点。"
+    if action == "hold":
+        return "先拿着，按风险位盯，不因为一天波动乱动。"
+    return "信息还不够明确，先观察，不急着买卖。"
+
+
 def _money(value: float | None) -> str:
     """格式化金额。"""
     if value is None:
         return "N/A"
     return f"{value:,.2f}"
+
+
+def _money_label(value: float | None) -> str:
+    """格式化适合人读的金额。"""
+    if value is None:
+        return "未填成本，暂不计算"
+    return f"{value:,.2f}"
+
+
+def _join_or_none(items: list[str]) -> str:
+    """连接理由或风控说明。"""
+    return "；".join(items) if items else "暂无明确证据"
+
+
+def _action_sort_key(action: str) -> int:
+    """按读者最关心的动作排序。"""
+    order = {"trim_candidate": 0, "add_candidate": 1, "watch": 2, "hold": 3}
+    return order.get(action, 9)
 
 
 def _source_limit_section() -> list[str]:

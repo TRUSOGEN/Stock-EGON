@@ -4,6 +4,8 @@
 
 本 agent 的目标是在非本机环境中定时生成美股持仓日报和周报。推荐部署到 GitHub 私有仓库，通过 GitHub Actions 定时运行，通过 Secrets/Variables 注入持仓、新闻源和通知配置。用户日常只需要维护 GitHub Secrets，不需要把真实持仓留在当前电脑。
 
+当前美股 agent 不依赖 Codex、OpenAI 或其他 LLM API。它是规则引擎，主要依赖 yfinance 行情、可选新闻搜索 provider、持仓配置和 SMTP 通知。任何人复用时都应 fork 仓库，并配置自己的 Secrets；不会也不能复用你的 Codex 登录态。
+
 ## 必填配置
 
 `PORTFOLIO_JSON` 存放真实持仓，必须放在 GitHub Secrets。路径是 GitHub 仓库页面的 `Settings` -> `Secrets and variables` -> `Actions`。进入页面后停留在 `Secrets` 标签页，找到 `Repository secrets`，点击 `New repository secret`。
@@ -46,6 +48,10 @@
 ## 定时规则
 
 `.github/workflows/us-stock-report.yml` 默认北京时间周二到周六 08:30 生成日报，对应前一美股交易日收盘后；北京时间周六 09:00 生成周报。workflow 也支持手动触发，`report_type` 可选 `daily` 或 `weekly`。
+
+## 暂停与恢复
+
+暂停有两种方式。最直接方式是在 GitHub `Actions` 页面进入 `US Stock Portfolio Report`，点击 `Disable workflow`。更细的方式是在 `Settings` -> `Secrets and variables` -> `Actions` -> `Variables` 中新增 `REPORT_ENABLED=false`，workflow 会跳过整个报告任务。恢复时把 `REPORT_ENABLED` 改成 `true` 或删除该变量。
 
 ## 手动运行
 

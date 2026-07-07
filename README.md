@@ -14,6 +14,20 @@ Stock-EGON 是一个股票研究辅助项目，当前包含两部分：基于 AK
 
 如果你想一次性填持仓、邮箱和新闻源，可以打开 [docs/config-wizard.html](docs/config-wizard.html)。这个页面会在浏览器本地生成 `PORTFOLIO_JSON` 和 `gh secret set` 命令，方便一次性写入 GitHub Secrets。
 
+## AI API 和复用边界
+
+当前美股日报和周报没有调用 Codex、OpenAI 或任何 LLM API。它是 Python 规则引擎：读取持仓，拉取行情和可选新闻源，按趋势、动量、组合风险和 guardrail 生成报告。所以别人复用这个项目时，不会用你的 Codex，也不需要你的 OpenAI key。
+
+别人要复用时，应 fork 仓库到自己的 GitHub 账号，并在自己的仓库 Secrets 里配置自己的 `PORTFOLIO_JSON`、邮箱 SMTP、新闻源 key。真实持仓、邮箱授权码和新闻源 key 都不应该写进代码。
+
+后续如果要接 LLM 问答或更像投研助理的解释能力，应新增独立的 `OPENAI_API_KEY` 或兼容模型 key Secret。这个 key 由每个使用者自己配置，不能复用你的 Codex 登录态。
+
+## 暂停服务
+
+最快暂停方式是在 GitHub 仓库 `Actions` 页面点进 `US Stock Portfolio Report`，右上角选择 `Disable workflow`。这样定时任务和手动任务都会停。
+
+如果只想临时暂停但保留 workflow，可在 `Settings` -> `Secrets and variables` -> `Actions` -> `Variables` 里新增或修改 `REPORT_ENABLED=false`。要恢复时把它改成 `true`，或者删掉这个 Variable。
+
 ## GitHub Secrets 照填表
 
 在 `Actions secrets and variables` 页面里，只使用 `Repository secrets`。点击 `New repository secret` 后按下表填写：
@@ -31,7 +45,7 @@ Stock-EGON 是一个股票研究辅助项目，当前包含两部分：基于 AK
 | `TAVILY_API_KEY` | Tavily 新闻搜索 key | 否 | Secrets |
 | `BRAVE_API_KEY` | Brave Search key | 否 | Secrets |
 
-不要把这两个值填到 `Variables`，因为 Variables 是明文配置；Secrets 才是加密配置。
+不要把持仓、邮箱密码和 API key 填到 `Variables`，因为 Variables 是明文配置；Secrets 才是加密配置。`REPORT_ENABLED=false` 这种非敏感开关可以放到 Variables。
 
 ## 最小可用配置
 
