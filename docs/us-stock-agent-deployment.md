@@ -8,6 +8,8 @@
 
 `PORTFOLIO_JSON` 存放真实持仓，推荐放在 GitHub Secrets。如果只是测试，也可以临时放在 Repository Variables。路径是 GitHub 仓库页面的 `Settings` -> `Secrets and variables` -> `Actions` -> `New repository secret`。
 
+如果不想手工写 JSON，可以复制 [portfolio-input-template.md](portfolio-input-template.md) 里的提示词给 AI，再附上持仓截图或表格，让 AI 输出完整 `PORTFOLIO_JSON`。AI 只做数据整理，不应补充投资判断，也不应猜测看不清的数量。
+
 ```json
 {
   "currency": "USD",

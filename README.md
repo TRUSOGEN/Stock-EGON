@@ -10,6 +10,8 @@ Stock-EGON 是一个股票研究辅助项目，当前包含两部分：基于 AK
 
 第三步，如果要微信推送，在同一个位置新增 `WECHAT_WEBHOOK_URL`。这个值来自企业微信群机器人 webhook；配置后日报和周报会自动推送到群里。普通群机器人只能单向推送，不能接收你的追问；交互式问答需要后续单独接企业微信应用、公众号或自建回调服务。
 
+如果你不想手工写 `PORTFOLIO_JSON`，可以把 [docs/portfolio-input-template.md](docs/portfolio-input-template.md) 里的提示词发给 AI，再附上持仓截图或表格，让 AI 只负责整理出可复制的 JSON。
+
 ## 最小可用配置
 
 `PORTFOLIO_JSON` 示例：
