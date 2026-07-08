@@ -106,6 +106,44 @@ class DecisionEngineTests(unittest.TestCase):
         self.assertLessEqual(score.total_score, 45)
         self.assertEqual(classify_action(score).action, "trim_candidate")
 
+    def test_score_position_absorbs_strategy_skill_signals(self) -> None:
+        """评分应吸收多头趋势、低乖离和量价确认等 strategy skill 信号。"""
+        position = build_portfolio_view(
+            Portfolio(currency="USD", cash=2000, holdings=[Holding(symbol="NVDA", quantity=1, cost_basis=100)]),
+            {"NVDA": MarketSnapshot(symbol="NVDA", price=118, previous_close=117)},
+        ).positions[0]
+        history = _trend_frame(100, [index * 0.2 for index in range(90)])
+        history.loc[history.index[-1], "volume"] = history["volume"].rolling(5, min_periods=1).mean().iloc[-1] * 10
+
+        score = score_position(
+            position,
+            history,
+            portfolio_risk_level="balanced",
+            news_risk_flags=[],
+        )
+
+        evidence = "；".join(score.evidence)
+        self.assertIn("MA5/MA10/MA20 多头排列", evidence)
+        self.assertIn("均线乖离低于 5%", evidence)
+        self.assertIn("放量突破或反弹确认", evidence)
+
+    def test_score_position_treats_negative_events_as_risk_veto(self) -> None:
+        """事件驱动信号里，负面事件应优先进入风险扣分和解释。"""
+        position = build_portfolio_view(
+            Portfolio(currency="USD", cash=2000, holdings=[Holding(symbol="MRVL", quantity=1, cost_basis=100)]),
+            {"MRVL": MarketSnapshot(symbol="MRVL", price=118, previous_close=117)},
+        ).positions[0]
+
+        score = score_position(
+            position,
+            _trend_frame(100, [index * 0.2 for index in range(90)]),
+            portfolio_risk_level="balanced",
+            news_risk_flags=["guidance_cut"],
+        )
+
+        self.assertIn("事件驱动风险优先", "；".join(score.evidence))
+        self.assertLess(score.risk_score, 80)
+
     def test_reports_include_holdings_actions_risks_and_source_limits(self) -> None:
         """日报和周报应包含持仓动作、风险、复盘和数据限制。"""
         portfolio = Portfolio(

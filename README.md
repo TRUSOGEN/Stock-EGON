@@ -209,4 +209,4 @@ AKShare 是开源财经数据接口库，可以免费安装和使用；它聚合
 
 ## 文档入口
 
-核心业务逻辑、数据流、评分规则、guardrail 和回测假设见 [docs/principle.md](docs/principle.md)。LLM 投研助理配置见 [docs/llm-config-guide.md](docs/llm-config-guide.md)。零基础 GitHub 配置教程见 [docs/github-actions-beginner.md](docs/github-actions-beginner.md)。
+核心业务逻辑、数据流、评分规则、guardrail 和回测假设见 [docs/principle.md](docs/principle.md)。美股持仓方法论、参考来源和未验证边界见 [docs/methodology.md](docs/methodology.md)。LLM 投研助理配置见 [docs/llm-config-guide.md](docs/llm-config-guide.md)。零基础 GitHub 配置教程见 [docs/github-actions-beginner.md](docs/github-actions-beginner.md)。

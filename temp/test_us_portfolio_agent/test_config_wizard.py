@@ -86,6 +86,21 @@ class TestConfigWizard(unittest.TestCase):
         self.assertIn("finance.yahoo.com", html)
         self.assertNotIn("data/us-stock-charts.json", html)
 
+    def test_methodology_doc_records_daily_stock_analysis_and_strategy_skill_sources(self) -> None:
+        """方法论文档应记录参考来源和本项目的取舍边界。"""
+        markdown = (PROJECT_ROOT / "docs" / "methodology.md").read_text(encoding="utf-8")
+
+        for expected in (
+            "ZhuLinsen/daily_stock_analysis",
+            "bull_trend",
+            "volume_breakout",
+            "event_driven",
+            "growth_quality",
+            "不是交易指令",
+            "未回测验证前",
+        ):
+            self.assertIn(expected, markdown)
+
     def test_config_wizard_persists_last_form_values_locally(self) -> None:
         """配置向导应在浏览器本地记住上一次填写的内容。"""
         html = (PROJECT_ROOT / "docs" / "config-wizard.html").read_text(encoding="utf-8")

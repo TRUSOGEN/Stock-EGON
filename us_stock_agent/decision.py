@@ -43,6 +43,22 @@ def score_position(
         trend_score -= 10
         evidence.append("收盘价跌破 MA20")
 
+    previous = indicators.iloc[-2] if len(indicators) >= 2 else latest
+    if latest["ma5"] >= latest["ma10"] >= latest["ma20"] and latest["ma20"] >= previous["ma20"]:
+        trend_score += 10
+        evidence.append("MA5/MA10/MA20 多头排列")
+    elif latest["ma5"] < latest["ma10"] < latest["ma20"]:
+        trend_score -= 8
+        evidence.append("短中期均线空头排列")
+
+    ma20_bias = (latest["close"] / latest["ma20"] - 1) if latest["ma20"] else 0.0
+    if 0 <= ma20_bias <= 0.05:
+        trend_score += 6
+        evidence.append("均线乖离低于 5%，位置不算追高")
+    elif ma20_bias > 0.1:
+        momentum_score -= 8
+        evidence.append("价格距离 MA20 过远，追高风险上升")
+
     if 45 <= latest["rsi6"] <= 72:
         momentum_score += 16
         evidence.append("短线动量健康")
@@ -52,7 +68,10 @@ def score_position(
     elif latest["rsi6"] < 35:
         momentum_score -= 12
         evidence.append("短线动量偏弱")
-    if latest["volume_ratio"] > 1.2 and latest["close"] >= indicators["close"].iloc[-2]:
+    if latest["volume_ratio"] > 2.0 and latest["close"] >= indicators["close"].iloc[-2]:
+        momentum_score += 12
+        evidence.append("放量突破或反弹确认")
+    elif latest["volume_ratio"] > 1.2 and latest["close"] >= indicators["close"].iloc[-2]:
         momentum_score += 8
         evidence.append("上涨伴随放量")
 
@@ -65,7 +84,7 @@ def score_position(
             evidence.append("持仓已有显著浮盈")
     if news_risk_flags:
         risk_score -= min(30, 10 * len(news_risk_flags))
-        evidence.append("存在新闻或事件风险标记")
+        evidence.append("事件驱动风险优先，存在新闻或事件风险标记")
 
     if position.weight > _max_single_name_weight(portfolio_risk_level):
         concentration_score -= 26
