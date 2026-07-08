@@ -153,11 +153,11 @@ class TestEmailNotifications(unittest.TestCase):
             [
                 "# 每日美股持仓简报",
                 "",
-                "### SPEX - 换仓候选",
-                "- 一句话: 等价格确认。",
+                "### SPEX — 换仓候选",
+                "SPEX 目前占组合权重 12.30%，等待价格确认。",
                 "",
-                "### NVDA - 继续持有",
-                "- 一句话: 按风险位盯。",
+                "### NVDA — 继续持有",
+                "NVDA 目前占组合权重 27.00%，按风险位盯。",
             ]
         )
         message = build_email_message(
@@ -172,9 +172,9 @@ class TestEmailNotifications(unittest.TestCase):
         )
 
         html = message.get_body(preferencelist=("html",)).get_content()
-        spex_heading = html.index("SPEX - 换仓候选")
+        spex_heading = html.index("SPEX — 换仓候选")
         spex_image = html.index("SPEX-price-volume.png")
-        nvda_heading = html.index("NVDA - 继续持有")
+        nvda_heading = html.index("NVDA — 继续持有")
         nvda_image = html.index("NVDA-price-volume.png")
         self.assertLess(spex_heading, spex_image)
         self.assertLess(spex_image, nvda_heading)

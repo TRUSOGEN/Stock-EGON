@@ -65,10 +65,59 @@ class TestReportReadability(unittest.TestCase):
         report = render_daily_report(view=view, scored_actions=scored_actions, market_notes=["新闻源未配置。"])
 
         self.assertIn("## 先看结论", report)
-        self.assertIn("## 每只持仓一句话", report)
-        self.assertIn("一句话:", report)
+        self.assertIn("## 每只持仓说明", report)
+        self.assertIn("目前占组合权重", report)
+        self.assertNotIn("一句话:", report)
         self.assertNotIn("| Ticker | 动作 | 评分 | 权重 |", report)
         self.assertNotIn("## 持仓动作表", report)
+
+    def test_daily_report_writes_each_position_as_heading_then_paragraph(self) -> None:
+        """单票段落应是标题加自然语言正文，便于图片紧跟在该股票下面。"""
+        portfolio = Portfolio(
+            currency="USD",
+            cash=4.66,
+            holdings=[Holding(symbol="NVDA", quantity=10, cost_basis=150)],
+            risk_profile="aggressive",
+        )
+        view = build_portfolio_view(
+            portfolio,
+            {"NVDA": MarketSnapshot(symbol="NVDA", price=195, previous_close=194)},
+        )
+        score = PositionScore(
+            symbol="NVDA",
+            total_score=56,
+            trend_score=45,
+            momentum_score=64,
+            valuation_score=50,
+            risk_score=58,
+            concentration_score=47,
+            evidence=["中期趋势偏弱，收盘价低于 20 日均线", "短线动量仍属健康"],
+        )
+        action = ActionRecommendation(
+            symbol="NVDA",
+            action="watch",
+            label="重点观察",
+            rationale=["中期趋势偏弱，收盘价低于 20 日均线", "短线动量仍属健康"],
+            risk_controls=[
+                "等待趋势或新闻催化进一步确认",
+                "观察进入区间: 193.60-198.90",
+                "风险位: 186.00",
+                "目标观察位: 213.99",
+                "失效条件: 跌破 186.00 或出现确认的重大负面事件",
+            ],
+        )
+
+        report = render_daily_report(view=view, scored_actions=[(score, action)])
+
+        self.assertIn("### NVDA — 重点观察", report)
+        self.assertIn("NVDA 目前占组合权重", report)
+        self.assertIn("观察进入区间约在 193.60–198.90", report)
+        self.assertIn("风险位设在 186.00", report)
+        self.assertIn("目标观察位 213.99", report)
+        self.assertIn("若股价跌破 186.00 或出现确认的重大负面事件", report)
+        section = report.split("### NVDA — 重点观察", 1)[1].split("## 数据限制", 1)[0]
+        self.assertNotIn("- 一句话:", section)
+        self.assertNotIn("- 当前状态:", section)
 
     def test_daily_report_frames_add_candidates_as_rebalance_not_cash_spend(self) -> None:
         """买入候选应明确来自调仓资金，不默认消耗现金。"""

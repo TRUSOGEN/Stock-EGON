@@ -41,7 +41,7 @@ def render_daily_report(
     if portfolio_risk:
         lines.extend(_portfolio_risk_section(portfolio_risk))
     lines.append("")
-    lines.append("## 每只持仓一句话")
+    lines.append("## 每只持仓说明")
     position_by_symbol = {position.symbol: position for position in view.positions}
     for score, action in sorted(scored_actions, key=lambda item: _action_sort_key(item[1].action)):
         position = position_by_symbol[score.symbol]
@@ -104,23 +104,94 @@ def _position_plain_language_section(score: PositionScore, action: ActionRecomme
     """把单票动作写成适合邮件阅读的自然语言。"""
     return [
         "",
-        f"### {score.symbol} - {action.label}",
-        f"- 一句话: {_plain_action_sentence(action.action)}",
-        f"- 当前状态: 权重 {position.weight:.2%}，评分 {score.total_score:.1f}，当日盈亏 {_money_label(position.day_pnl)}，浮动盈亏 {_money_label(position.unrealized_pnl)}。",
-        f"- 为什么: {_join_or_none(action.rationale)}。",
-        f"- 怎么盯: {_join_or_none(action.risk_controls)}。",
+        f"### {score.symbol} — {action.label}",
+        _position_narrative(score, action, position),
     ]
 
 
-def _plain_action_sentence(action: str) -> str:
-    """把动作标签翻译成更接近人话的解释。"""
+def _position_narrative(score: PositionScore, action: ActionRecommendation, position) -> str:
+    """生成单票自然语言段落。"""
+    parts = [
+        f"{score.symbol} 目前占组合权重 {position.weight:.2%}，{_pnl_narrative(position.unrealized_pnl)}。",
+        _signal_narrative(score, action),
+        _action_narrative(action.action, action.label),
+    ]
+    levels = _extract_control_levels(action.risk_controls)
+    levels_text = _levels_narrative(levels)
+    if levels_text:
+        parts.append(f"需要盯住的关键区间：{levels_text}。")
+    invalidation_text = _invalidation_narrative(levels.get("invalidation"))
+    if invalidation_text:
+        parts.append(f"{invalidation_text}，需重新评估。")
+    else:
+        parts.append(f"后续风控重点是{_join_or_none(action.risk_controls)}。")
+    return "".join(parts)
+
+
+def _pnl_narrative(value: float | None) -> str:
+    """把浮动盈亏写成人话。"""
+    if value is None:
+        return "未填成本价，暂不计算浮动盈亏"
+    if value > 0:
+        return f"已有浮盈 {_money(value)}"
+    if value < 0:
+        return f"目前浮亏 {_money(abs(value))}"
+    return "当前浮动盈亏接近持平"
+
+
+def _signal_narrative(score: PositionScore, action: ActionRecommendation) -> str:
+    """描述当前信号强弱。"""
+    evidence = _join_or_none(action.rationale or score.evidence)
+    return f"当前主要信号是{evidence}。"
+
+
+def _action_narrative(action: str, label: str) -> str:
+    """解释当前动作标签。"""
     if action == "add_candidate":
-        return "走势还可以，可以放进换仓候选；若要买，优先用减仓或卖出释放的资金承接，别追高。"
+        return f"因此列为{label}，若后续买入，默认用减仓或卖出释放的资金承接。"
     if action == "trim_candidate":
-        return "风险或趋势不够好，先复核仓位，必要时减一点。"
+        return f"因此列为{label}，先复核仓位和风险来源，必要时分批处理。"
     if action == "hold":
-        return "先拿着，按风险位盯，不因为一天波动乱动。"
-    return "信息还不够明确，先观察，不急着买卖。"
+        return f"因此列为{label}，继续按风险位跟踪，不因为一天波动乱动。"
+    return f"当前信息不足以做出明确买卖决策，因此列为{label}，等待趋势或新闻催化进一步明朗。"
+
+
+def _extract_control_levels(risk_controls: list[str]) -> dict[str, str]:
+    """从风控说明中提取价格区间、风险位、目标位和失效条件。"""
+    levels: dict[str, str] = {}
+    for item in risk_controls:
+        if item.startswith("观察进入区间:"):
+            levels["entry"] = item.split(":", 1)[1].strip().replace("-", "–")
+        elif item.startswith("风险位:"):
+            levels["risk"] = item.split(":", 1)[1].strip()
+        elif item.startswith("目标观察位:"):
+            levels["target"] = item.split(":", 1)[1].strip()
+        elif item.startswith("失效条件:"):
+            levels["invalidation"] = item.split(":", 1)[1].strip()
+    return levels
+
+
+def _levels_narrative(levels: dict[str, str]) -> str:
+    """把关键价位拼成自然语言。"""
+    items = []
+    if entry := levels.get("entry"):
+        items.append(f"观察进入区间约在 {entry}")
+    if risk := levels.get("risk"):
+        items.append(f"风险位设在 {risk}")
+    if target := levels.get("target"):
+        items.append(f"目标观察位 {target}")
+    return "，".join(items)
+
+
+def _invalidation_narrative(invalidation: str | None) -> str:
+    """把失效条件拼成自然语言。"""
+    if not invalidation:
+        return ""
+    if invalidation.startswith("跌破"):
+        condition = f"股价{invalidation}"
+    else:
+        condition = invalidation
+    return f"若{condition}，则当前观察逻辑失效"
 
 
 def _money(value: float | None) -> str:
