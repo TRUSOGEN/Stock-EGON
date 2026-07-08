@@ -102,7 +102,7 @@ class TestEmailNotifications(unittest.TestCase):
         FakeSMTP.instances = []
 
     def test_build_email_message_sets_subject_sender_and_recipients(self) -> None:
-        """Markdown 报告会被包装为纯文本邮件。"""
+        """Markdown 报告会被包装为更适合邮件阅读的 text+html 邮件。"""
         message = build_email_message(
             "# 每日美股持仓简报\n\n组合净值: 100 USD",
             subject="Stock-EGON 日报",
@@ -113,7 +113,34 @@ class TestEmailNotifications(unittest.TestCase):
         self.assertEqual(message["Subject"], "Stock-EGON 日报")
         self.assertEqual(message["From"], "bot@example.com")
         self.assertEqual(message["To"], "user@example.com")
-        self.assertIn("每日美股持仓简报", message.get_content())
+        text_part = message.get_body(preferencelist=("plain",))
+        html_part = message.get_body(preferencelist=("html",))
+        self.assertIsNotNone(text_part)
+        self.assertIsNotNone(html_part)
+        self.assertIn("每日美股持仓简报", text_part.get_content())
+        self.assertNotIn("# 每日美股持仓简报", text_part.get_content())
+        self.assertIn("<h1>", html_part.get_content())
+
+    def test_build_email_message_supports_binary_attachments(self) -> None:
+        """图表附件会作为二进制附件加入邮件。"""
+        message = build_email_message(
+            "# 每日美股持仓简报\n\n组合净值: 100 USD",
+            subject="Stock-EGON 日报",
+            sender="bot@example.com",
+            recipients=["user@example.com"],
+            attachments=[
+                {
+                    "filename": "NVDA-chart.png",
+                    "content_type": "image/png",
+                    "data": b"\x89PNG\r\n\x1a\nfake",
+                }
+            ],
+        )
+
+        attachments = list(message.iter_attachments())
+        self.assertEqual(len(attachments), 1)
+        self.assertEqual(attachments[0].get_filename(), "NVDA-chart.png")
+        self.assertEqual(attachments[0].get_content_type(), "image/png")
 
     def test_send_email_markdown_skips_when_email_missing(self) -> None:
         """未配置邮件参数时明确跳过，不把报告任务打失败。"""

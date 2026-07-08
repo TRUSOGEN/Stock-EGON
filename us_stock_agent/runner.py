@@ -77,7 +77,7 @@ def run_report(
         raise ValueError("report_type 必须是 daily 或 weekly。")
     return make_result(
         module=module,
-        data={"report_markdown": report},
+        data={"report_markdown": report, "symbols": symbols},
         data_time=None,
         source_api="yfinance + configured_news_provider",
         warnings=["免费行情源可能延迟或失败；报告仅供研究复盘，不构成投资建议。"],

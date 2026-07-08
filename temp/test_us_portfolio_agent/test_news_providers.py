@@ -151,6 +151,19 @@ class TestNewsProviders(unittest.TestCase):
 
         self.assertEqual([item.provider_name for item in provider.providers], ["alphavantage", "tavily", "serpapi"])
 
+    def test_build_news_provider_from_env_uses_cost_aware_default_order(self) -> None:
+        """未指定顺序时优先使用更便宜的搜索源。"""
+        provider = build_news_provider_from_env(
+            {
+                "ALPHA_VANTAGE_API_KEY": "alpha",
+                "SERPAPI_API_KEY": "serp",
+                "TAVILY_API_KEY": "tav",
+                "BRAVE_API_KEY": "brave",
+            }
+        )
+
+        self.assertEqual([item.provider_name for item in provider.providers], ["brave", "tavily", "serpapi", "alphavantage"])
+
 
 if __name__ == "__main__":
     unittest.main()

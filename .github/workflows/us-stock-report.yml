@@ -64,8 +64,10 @@ jobs:
           EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
           EMAIL_USE_TLS: ${{ secrets.EMAIL_USE_TLS || vars.EMAIL_USE_TLS }}
+          EMAIL_INCLUDE_CHARTS: ${{ secrets.EMAIL_INCLUDE_CHARTS || vars.EMAIL_INCLUDE_CHARTS }}
         run: |
           mkdir -p reports
+          python scripts/preflight.py
           python scripts/us_daily_report.py > reports/us-daily-report.json
           cat reports/us-daily-report.json
           python scripts/send_email_report.py --report-file reports/us-daily-report.json
@@ -106,8 +108,10 @@ jobs:
           EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
           EMAIL_USE_TLS: ${{ secrets.EMAIL_USE_TLS || vars.EMAIL_USE_TLS }}
+          EMAIL_INCLUDE_CHARTS: ${{ secrets.EMAIL_INCLUDE_CHARTS || vars.EMAIL_INCLUDE_CHARTS }}
         run: |
           mkdir -p reports
+          python scripts/preflight.py
           python scripts/us_weekly_review.py > reports/us-weekly-review.json
           cat reports/us-weekly-review.json
           python scripts/send_email_report.py --report-file reports/us-weekly-review.json

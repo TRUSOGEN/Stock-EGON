@@ -11,7 +11,14 @@ import os
 from dataclasses import dataclass
 from typing import Any, Mapping, Protocol
 
-import requests
+try:
+    import requests
+except ModuleNotFoundError:  # pragma: no cover - 仅在极简测试环境触发
+    requests = None
+
+
+DEFAULT_NEWS_PROVIDER_ORDER = ["brave", "tavily", "serpapi", "alphavantage"]
+SUPPORTED_NEWS_PROVIDERS = tuple(DEFAULT_NEWS_PROVIDER_ORDER)
 
 
 @dataclass(frozen=True)
@@ -81,11 +88,18 @@ class SerpAPINewsProvider:
     def __init__(self, api_key: str, *, get: Any | None = None, timeout: int = 10) -> None:
         """保存 API key 和 HTTP client。"""
         self.api_key = api_key
-        self.get = get or requests.get
+        if get is not None:
+            self.get = get
+        elif requests is not None:
+            self.get = requests.get
+        else:
+            self.get = None
         self.timeout = timeout
 
     def fetch_news(self, symbols: list[str]) -> dict[str, list[NewsItem]]:
         """通过 SerpAPI organic_results 搜索 ticker 相关新闻。"""
+        if self.get is None:
+            raise RuntimeError("当前环境缺少 requests，无法调用 SerpAPI。")
         results = {}
         for symbol in symbols:
             response = self.get(
@@ -128,11 +142,18 @@ class TavilyNewsProvider:
     def __init__(self, api_key: str, *, post: Any | None = None, timeout: int = 10) -> None:
         """保存 API key 和 HTTP client。"""
         self.api_key = api_key
-        self.post = post or requests.post
+        if post is not None:
+            self.post = post
+        elif requests is not None:
+            self.post = requests.post
+        else:
+            self.post = None
         self.timeout = timeout
 
     def fetch_news(self, symbols: list[str]) -> dict[str, list[NewsItem]]:
         """通过 Tavily search endpoint 搜索 ticker 相关新闻。"""
+        if self.post is None:
+            raise RuntimeError("当前环境缺少 requests，无法调用 Tavily。")
         results = {}
         for symbol in symbols:
             response = self.post(
@@ -177,11 +198,18 @@ class BraveNewsProvider:
     def __init__(self, api_key: str, *, get: Any | None = None, timeout: int = 10) -> None:
         """保存 API key 和 HTTP client。"""
         self.api_key = api_key
-        self.get = get or requests.get
+        if get is not None:
+            self.get = get
+        elif requests is not None:
+            self.get = requests.get
+        else:
+            self.get = None
         self.timeout = timeout
 
     def fetch_news(self, symbols: list[str]) -> dict[str, list[NewsItem]]:
         """通过 Brave web search 搜索 ticker 相关新闻。"""
+        if self.get is None:
+            raise RuntimeError("当前环境缺少 requests，无法调用 Brave Search。")
         results = {}
         for symbol in symbols:
             response = self.get(
@@ -221,11 +249,18 @@ class AlphaVantageNewsProvider:
     def __init__(self, api_key: str, *, get: Any | None = None, timeout: int = 10) -> None:
         """保存 API key 和 HTTP client。"""
         self.api_key = api_key
-        self.get = get or requests.get
+        if get is not None:
+            self.get = get
+        elif requests is not None:
+            self.get = requests.get
+        else:
+            self.get = None
         self.timeout = timeout
 
     def fetch_news(self, symbols: list[str]) -> dict[str, list[NewsItem]]:
         """通过 Alpha Vantage NEWS_SENTIMENT 拉取 ticker 相关新闻。"""
+        if self.get is None:
+            raise RuntimeError("当前环境缺少 requests，无法调用 Alpha Vantage。")
         results = {}
         for symbol in symbols:
             response = self.get(
@@ -277,7 +312,7 @@ def build_news_provider_from_env(env: Mapping[str, str] | None = None) -> NewsPr
         providers_by_name["tavily"] = TavilyNewsProvider(tavily_keys[0])
     if brave_keys:
         providers_by_name["brave"] = BraveNewsProvider(brave_keys[0])
-    order = split_env_values(source.get("NEWS_PROVIDER_ORDER")) or ["alphavantage", "serpapi", "tavily", "brave"]
+    order = split_env_values(source.get("NEWS_PROVIDER_ORDER")) or list(DEFAULT_NEWS_PROVIDER_ORDER)
     providers = [providers_by_name[name] for name in order if name in providers_by_name]
     if not providers:
         return EmptyNewsProvider()

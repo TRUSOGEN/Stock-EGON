@@ -206,6 +206,34 @@
         font-size: 13px;
       }
 
+      .steps {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .step {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #ffffff;
+        padding: 14px;
+      }
+
+      .step strong {
+        display: block;
+        margin-bottom: 6px;
+      }
+
+      details {
+        margin-top: 14px;
+      }
+
+      summary {
+        cursor: pointer;
+        color: var(--accent);
+        font-weight: 600;
+      }
+
       .error {
         display: none;
         border-left: 4px solid var(--danger);
@@ -239,6 +267,10 @@
           grid-template-columns: 1fr;
         }
 
+        .steps {
+          grid-template-columns: 1fr;
+        }
+
         th:nth-child(4),
         td:nth-child(4),
         th:nth-child(5),
@@ -252,7 +284,21 @@
     <main>
       <section class="intro">
         <h1>Stock-EGON 配置向导</h1>
-        <p>在这个页面填持仓、QQ 邮箱授权码和新闻源 key，然后复制生成的 GitHub Secrets 命令。页面只在浏览器本地计算，不会上传你的配置。</p>
+        <p>把你知道的信息填进去，然后只复制下面生成的那一段终端命令。页面只在浏览器本地计算，不会上传你的持仓、邮箱或 key。</p>
+        <div class="steps">
+          <div class="step">
+            <strong>第一步</strong>
+            填持仓、成本价、邮箱和可选新闻源。
+          </div>
+          <div class="step">
+            <strong>第二步</strong>
+            复制右侧那一整段终端命令。
+          </div>
+          <div class="step">
+            <strong>第三步</strong>
+            打开终端粘贴执行，然后去 GitHub 手动运行 workflow。
+          </div>
+        </div>
       </section>
 
       <div class="layout">
@@ -282,7 +328,7 @@
                 <tr>
                   <th>Ticker</th>
                   <th>数量</th>
-                  <th>成本</th>
+                  <th>成本价</th>
                   <th>目标权重</th>
                   <th>备注</th>
                   <th></th>
@@ -298,7 +344,7 @@
 
           <section class="section">
             <h2>邮件推送</h2>
-            <p>QQ 邮箱推荐只填下面两个字段；如果使用其他邮箱，再填写高级 SMTP 字段。</p>
+            <p>QQ 邮箱最省事，只填邮箱和授权码就能发给自己。默认会把每只股票的周、月、年三联 K 线图一起附在邮件里。</p>
             <div class="grid">
               <label>
                 QQ 邮箱
@@ -309,9 +355,20 @@
                 <input id="emailAuthCode" type="password" autocomplete="off" />
               </label>
               <label>
+                附带每只股票 K 线图
+                <select id="emailIncludeCharts">
+                  <option value="true">是，附带周/月/年三联图</option>
+                  <option value="false">否，只发文字</option>
+                </select>
+              </label>
+              <label>
                 收件邮箱（高级可选）
                 <input id="emailTo" type="email" placeholder="you@example.com" />
               </label>
+            </div>
+            <details>
+              <summary>其他邮箱或高级 SMTP 设置</summary>
+              <div class="grid">
               <label>
                 SMTP host（高级可选）
                 <input id="emailSmtpHost" placeholder="smtp.gmail.com" />
@@ -332,12 +389,14 @@
                 发件邮箱（高级可选）
                 <input id="emailFrom" type="email" placeholder="默认使用发件账号" />
               </label>
-            </div>
+              </div>
+            </details>
             <p>授权码和应用专用密码都不要填写网页登录密码；生成的命令需要粘贴到终端执行。</p>
           </section>
 
           <section class="section">
             <h2>LLM 投研助理</h2>
+            <p>只想先把日报跑通，可以先不填这一段。</p>
             <div class="grid">
               <label>
                 火山方舟 API key
@@ -369,26 +428,27 @@
 
           <section class="section">
             <h2>新闻源</h2>
+            <p>默认优先用更便宜的搜索源。没有新闻 key 也能跑，只是报告里不会自动补催化和事件。</p>
             <div class="grid">
               <label>
-                Alpha Vantage key
-                <input id="alphaVantageKey" autocomplete="off" />
-              </label>
-              <label>
-                SerpAPI key
-                <input id="serpapiKey" autocomplete="off" />
+                Brave Search key
+                <input id="braveKey" autocomplete="off" />
               </label>
               <label>
                 Tavily key
                 <input id="tavilyKey" autocomplete="off" />
               </label>
               <label>
-                Brave Search key
-                <input id="braveKey" autocomplete="off" />
+                SerpAPI key
+                <input id="serpapiKey" autocomplete="off" />
+              </label>
+              <label>
+                Alpha Vantage key（可选，较贵）
+                <input id="alphaVantageKey" autocomplete="off" />
               </label>
               <label>
                 新闻源顺序
-                <input id="newsProviderOrder" value="alphavantage,serpapi,tavily,brave" />
+                <input id="newsProviderOrder" value="brave,tavily,serpapi,alphavantage" />
               </label>
             </div>
           </section>
@@ -397,37 +457,20 @@
         <aside class="outputs">
           <div class="panel section">
             <div class="output-head">
-              <h2>PORTFOLIO_JSON</h2>
+              <h2>直接复制下面这一段到终端</h2>
+              <button type="button" class="primary" data-copy="oneShotSecretScript">复制</button>
+            </div>
+            <textarea id="oneShotSecretScript" readonly></textarea>
+            <p class="note">把这段脚本整段粘贴到已登录 GitHub CLI 的终端里执行。它会一次性写入 GitHub Secrets，然后你只需要去 GitHub 点运行。</p>
+          </div>
+
+          <div class="panel section">
+            <div class="output-head">
+              <h2>PORTFOLIO_JSON 预览</h2>
               <button type="button" data-copy="portfolioJson">复制</button>
             </div>
             <textarea id="portfolioJson" readonly></textarea>
-          </div>
-
-          <div class="panel section">
-            <div class="output-head">
-              <h2>一键终端脚本</h2>
-              <button type="button" data-copy="oneShotSecretScript">复制</button>
-            </div>
-            <textarea id="oneShotSecretScript" readonly></textarea>
-            <p class="note">把这段脚本整段粘贴到已登录 GitHub CLI 的终端里执行。它会通过 stdin 批量写入 GitHub Secrets。</p>
-          </div>
-
-          <div class="panel section">
-            <div class="output-head">
-              <h2>Secrets .env 内容</h2>
-              <button type="button" data-copy="secretEnvFile">复制</button>
-            </div>
-            <textarea id="secretEnvFile" readonly></textarea>
-            <p class="note">也可以把这段内容保存为本地临时文件，再运行 gh secret set --repo TRUSOGEN/Stock-EGON -f 文件名。</p>
-          </div>
-
-          <div class="panel section">
-            <div class="output-head">
-              <h2>逐条 GitHub Secrets 命令</h2>
-              <button type="button" data-copy="secretCommands">复制</button>
-            </div>
-            <textarea id="secretCommands" readonly></textarea>
-            <p class="note">这些命令需要在已登录 GitHub CLI 的终端里执行，macOS 默认 zsh 或 bash 都可以。不要把 key、邮箱密码或 webhook 提交进仓库。</p>
+            <p class="note">这里只是给你确认持仓 JSON 有没有整理对。真正需要执行的是上面的终端脚本。</p>
           </div>
 
           <div class="error" id="errorBox"></div>
@@ -510,6 +553,7 @@
           ["EMAIL_PASSWORD", document.getElementById("emailPassword").value],
           ["EMAIL_FROM", document.getElementById("emailFrom").value],
           ["EMAIL_USE_TLS", "true"],
+          ["EMAIL_INCLUDE_CHARTS", document.getElementById("emailIncludeCharts").value],
           ["ARK_API_KEY", document.getElementById("arkApiKey").value],
           ["ARK_MODEL", document.getElementById("arkModel").value],
           ["DEEPSEEK_API_KEY", document.getElementById("deepseekApiKey").value],
@@ -536,12 +580,6 @@
         return `gh secret set --repo ${repo} -f - <<'STOCK_EGON_SECRETS'\n${envFile}\nSTOCK_EGON_SECRETS`;
       }
 
-      function buildSecretCommands(pairs) {
-        return pairs
-          .map(([name, value]) => `gh secret set ${name} --repo ${repo} --body ${shellQuote(value)}`)
-          .join("\n");
-      }
-
       function refresh() {
         try {
           const portfolio = buildPortfolio();
@@ -549,9 +587,7 @@
           const pairs = buildSecretPairs(portfolioJson);
           const envFile = buildSecretEnvFile(pairs);
           document.getElementById("portfolioJson").value = portfolioJson;
-          document.getElementById("secretEnvFile").value = envFile;
           document.getElementById("oneShotSecretScript").value = buildOneShotSecretScript(envFile);
-          document.getElementById("secretCommands").value = buildSecretCommands(pairs);
           errorBox.classList.remove("visible");
           errorBox.textContent = "";
         } catch (error) {
@@ -571,6 +607,7 @@
         addRow({ symbol: "MSFT", quantity: 2 });
         document.getElementById("cash").value = "10000";
         document.getElementById("riskProfile").value = "balanced";
+        document.getElementById("emailIncludeCharts").value = "true";
         refresh();
       });
       rows.addEventListener("click", (event) => {

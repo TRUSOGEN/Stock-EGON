@@ -21,7 +21,7 @@
 
 如果不想手工写 JSON，可以复制 [portfolio-input-template.md](portfolio-input-template.md) 里的提示词给 AI，再附上持仓截图或表格，让 AI 输出完整 `PORTFOLIO_JSON`。AI 只做数据整理，不应补充投资判断，也不应猜测看不清的数量。
 
-如果想一次性配置持仓、邮件、LLM 投研助理和新闻源，可以打开 [config-wizard.html](config-wizard.html)。它会在浏览器本地生成 `PORTFOLIO_JSON`、Secrets `.env` 内容和一键终端脚本。复制生成的一键脚本后，粘贴到本机终端执行即可，脚本会通过 `gh secret set --repo TRUSOGEN/Stock-EGON -f -` 批量写入 GitHub Secrets。macOS 默认 zsh 或 bash 都可以；如果终端提示 GitHub CLI 未登录，先运行 `gh auth login`。
+如果想一次性配置持仓、邮件、LLM 投研助理和新闻源，可以打开 [config-wizard.html](config-wizard.html)。它会在浏览器本地生成一段一键终端脚本，右侧只保留最关键的那一段命令。复制生成的一键脚本后，粘贴到本机终端执行即可，脚本会通过 `gh secret set --repo TRUSOGEN/Stock-EGON -f -` 批量写入 GitHub Secrets。macOS 默认 zsh 或 bash 都可以；如果终端提示 GitHub CLI 未登录，先运行 `gh auth login`。
 
 ```json
 {
@@ -37,11 +37,11 @@
 
 ## 可选配置
 
-新闻源推荐配置 `ALPHA_VANTAGE_API_KEY`，使用 Alpha Vantage `NEWS_SENTIMENT` 按 ticker 拉取股票新闻。也可配置 `SERPAPI_API_KEY`、`TAVILY_API_KEY`、`BRAVE_API_KEY`，并兼容逗号分隔的 `SERPAPI_API_KEYS`、`TAVILY_API_KEYS`、`BRAVE_API_KEYS`。当前运行顺序默认是 Alpha Vantage、SerpAPI、Tavily、Brave；可通过 `NEWS_PROVIDER_ORDER=alphavantage,tavily,serpapi,brave` 调整。报告会把每只持仓的最新标题压缩进市场背景，并把 earnings、SEC、downgrade、Fed、inflation 等关键词映射为粗粒度风险标签。
+新闻源推荐优先配置 `BRAVE_API_KEY` 或 `TAVILY_API_KEY`，成本通常比 Alpha Vantage 更友好。也支持 `SERPAPI_API_KEY`、`ALPHA_VANTAGE_API_KEY`，并兼容逗号分隔的 `SERPAPI_API_KEYS`、`TAVILY_API_KEYS`、`BRAVE_API_KEYS`。当前默认顺序是 `brave,tavily,serpapi,alphavantage`；可通过 `NEWS_PROVIDER_ORDER` 调整。报告会把每只持仓的最新标题压缩进市场背景，并把 earnings、SEC、downgrade、Fed、inflation 等关键词映射为粗粒度风险标签。
 
-QQ 邮箱推送推荐只配置 `EMAIL_ADDRESS` 和 `EMAIL_AUTH_CODE`。`EMAIL_ADDRESS` 填 QQ 邮箱地址，`EMAIL_AUTH_CODE` 填 QQ 邮箱生成的 SMTP 授权码。workflow 会自动使用 `smtp.qq.com:587`，发件人和收件人默认都是 `EMAIL_ADDRESS`。这些值都应放在 GitHub Secrets。
+QQ 邮箱推送推荐只配置 `EMAIL_ADDRESS` 和 `EMAIL_AUTH_CODE`。`EMAIL_ADDRESS` 填 QQ 邮箱地址，`EMAIL_AUTH_CODE` 填 QQ 邮箱生成的 SMTP 授权码。workflow 会自动使用 `smtp.qq.com:587`，发件人和收件人默认都是 `EMAIL_ADDRESS`。这些值都应放在 GitHub Secrets。若希望邮件附带每只股票的周、月、年三联 K 线图，再额外配置 `EMAIL_INCLUDE_CHARTS=true`。
 
-其他邮箱可继续配置完整 SMTP 字段：`EMAIL_SMTP_HOST`、`EMAIL_SMTP_PORT`、`EMAIL_USERNAME`、`EMAIL_PASSWORD`、`EMAIL_FROM`、`EMAIL_TO`。配置后 workflow 会在生成日报或周报 JSON 后调用 `scripts/send_email_report.py`，把 `data.report_markdown` 作为纯文本邮件发出。Gmail、QQ 邮箱、Outlook 等通常需要应用专用密码，不要填写网页登录密码。
+其他邮箱可继续配置完整 SMTP 字段：`EMAIL_SMTP_HOST`、`EMAIL_SMTP_PORT`、`EMAIL_USERNAME`、`EMAIL_PASSWORD`、`EMAIL_FROM`、`EMAIL_TO`。配置后 workflow 会在生成日报或周报 JSON 后调用 `scripts/send_email_report.py`，把报告整理成更适合邮件阅读的文本和 HTML 正文后发出。Gmail、QQ 邮箱、Outlook 等通常需要应用专用密码，不要填写网页登录密码。
 
 LLM 投研助理可选配置。火山方舟应配置 `ARK_API_KEY` 和 `ARK_MODEL`，默认使用 `https://ark.cn-beijing.volces.com/api/v3`。DeepSeek 官方接口可配置 `DEEPSEEK_API_KEY`，系统会自动使用 `https://api.deepseek.com` 和 `deepseek-chat`。通用 OpenAI-compatible 服务可配置 `LLM_API_KEY`、`LLM_BASE_URL`、`LLM_MODEL`。为了兼容常见项目，也支持 `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`OPENAI_MODEL`。未配置 LLM key 时会跳过增强并发送规则报告；已配置 LLM key 但调用失败时，邮件任务会失败并显示错误，避免假装增强成功。细节见 [llm-config-guide.md](llm-config-guide.md)。
 
@@ -51,7 +51,7 @@ LLM 投研助理可选配置。火山方舟应配置 `ARK_API_KEY` 和 `ARK_MODE
 
 ## 定时规则
 
-`.github/workflows/us-stock-report.yml` 默认北京时间周二到周六 08:30 生成日报，对应前一美股交易日收盘后；北京时间周六 09:00 生成周报。workflow 也支持手动触发，`report_type` 可选 `daily` 或 `weekly`。
+`.github/workflows/us-stock-report.yml` 默认北京时间周二到周六 08:30 生成日报，对应前一美股交易日收盘后；北京时间周六 09:00 生成周报。workflow 也支持手动触发，`report_type` 可选 `daily` 或 `weekly`。正式生成前会先运行 `scripts/preflight.py`，提早暴露持仓 JSON、邮件、LLM、新闻源和图表附件配置的问题。
 
 ## 暂停与恢复
 
@@ -63,7 +63,7 @@ LLM 投研助理可选配置。火山方舟应配置 `ARK_API_KEY` 和 `ARK_MODE
 
 ## 输出与审计
 
-workflow 会把 JSON 报告打印到日志，并上传到 `us-stock-report` artifact。报告中的 `report_markdown` 是规则引擎报告，外层 JSON 保留 `ok`、`source_api`、`warnings`、`errors` 等机器可读状态。邮件推送会输出一个 `send_email_report` JSON，便于确认是已发送、已跳过、SMTP 失败，还是启用了 LLM 增强。
+workflow 会把 JSON 报告打印到日志，并上传到 `us-stock-report` artifact。报告中的 `report_markdown` 是规则引擎报告，外层 JSON 保留 `ok`、`source_api`、`warnings`、`errors` 等机器可读状态。邮件推送会输出一个 `send_email_report` JSON，便于确认是已发送、已跳过、SMTP 失败、是否启用了 LLM 增强，以及是否附带了 K 线附件。
 
 ## 风控边界
 

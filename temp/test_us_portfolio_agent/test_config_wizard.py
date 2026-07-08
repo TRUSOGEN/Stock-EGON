@@ -49,10 +49,11 @@ class TestConfigWizard(unittest.TestCase):
             "SERPAPI_API_KEY",
             "TAVILY_API_KEY",
             "BRAVE_API_KEY",
-            "secretEnvFile",
             "oneShotSecretScript",
+            "直接复制下面这一段到终端",
+            "EMAIL_INCLUDE_CHARTS",
+            "brave,tavily,serpapi,alphavantage",
             "gh secret set --repo ${repo} -f -",
-            "gh secret set",
         ):
             self.assertIn(expected, html)
 

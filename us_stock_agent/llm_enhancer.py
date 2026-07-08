@@ -12,7 +12,10 @@ import os
 from dataclasses import dataclass
 from typing import Any, Callable
 
-import requests
+try:
+    import requests
+except ModuleNotFoundError:  # pragma: no cover - 仅在极简测试环境触发
+    requests = None
 
 
 PostClient = Callable[..., Any]
@@ -113,7 +116,12 @@ def enhance_report_markdown(
     if not active_config.api_key or not active_config.base_url or not active_config.model:
         raise ValueError("LLM 配置不完整：需要 api_key、base_url 和 model。")
 
-    client = post or requests.post
+    if post is not None:
+        client = post
+    elif requests is not None:
+        client = requests.post
+    else:
+        raise RuntimeError("当前环境缺少 requests，无法调用 LLM 增强接口。")
     payload = _build_chat_completion_payload(markdown, report=report, model=active_config.model)
     response = client(
         _chat_completions_url(active_config.base_url),
