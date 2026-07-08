@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Stock-EGON 交互图</title>
+    <style>
+      :root {
+        --paper: #f7f8f3;
+        --ink: #111827;
+        --muted: #667085;
+        --rule: #d8ded8;
+        --panel: #ffffff;
+        --blue: #1f67b2;
+        --amber: #b7791f;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      main {
+        width: min(1080px, calc(100% - 28px));
+        margin: 0 auto;
+        padding: 26px 0 34px;
+      }
+
+      header {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 18px;
+        align-items: end;
+        padding-bottom: 18px;
+        border-bottom: 1px solid var(--rule);
+      }
+
+      h1 {
+        margin: 0;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: clamp(34px, 6vw, 68px);
+        line-height: 0.95;
+        letter-spacing: 0;
+      }
+
+      .subtle {
+        margin-top: 10px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .controls {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+
+      label {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      input,
+      button {
+        height: 40px;
+        border-radius: 8px;
+        border: 1px solid var(--rule);
+        font: inherit;
+      }
+
+      input {
+        width: 136px;
+        padding: 0 12px;
+        background: var(--panel);
+        color: var(--ink);
+        text-transform: uppercase;
+      }
+
+      button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 14px;
+        color: #ffffff;
+        background: var(--ink);
+        border-color: var(--ink);
+        cursor: pointer;
+      }
+
+      button:focus-visible,
+      input:focus-visible,
+      a:focus-visible {
+        outline: 3px solid rgba(183, 121, 31, 0.36);
+        outline-offset: 2px;
+      }
+
+      .workspace {
+        margin-top: 18px;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 268px;
+        gap: 18px;
+      }
+
+      .chart-panel,
+      .side-panel {
+        background: var(--panel);
+        border: 1px solid var(--rule);
+        border-radius: 8px;
+      }
+
+      .chart-panel {
+        min-height: 560px;
+        overflow: hidden;
+      }
+
+      #tradingviewContainer {
+        min-height: 560px;
+      }
+
+      .side-panel {
+        padding: 16px;
+      }
+
+      .symbol {
+        font-size: 28px;
+        font-weight: 760;
+        margin-bottom: 8px;
+      }
+
+      .note {
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.55;
+      }
+
+      .links {
+        display: grid;
+        gap: 10px;
+        margin-top: 18px;
+      }
+
+      .links a {
+        color: var(--blue);
+        text-decoration: none;
+        font-size: 14px;
+      }
+
+      .links a:hover {
+        text-decoration: underline;
+      }
+
+      .signal {
+        margin-top: 18px;
+        padding: 12px;
+        border-left: 4px solid var(--amber);
+        background: #fffaf0;
+        color: #5f430d;
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      footer {
+        margin-top: 14px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      @media (max-width: 820px) {
+        header,
+        .workspace {
+          grid-template-columns: 1fr;
+        }
+
+        .controls {
+          flex-wrap: wrap;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div>
+          <h1>Stock-EGON 交互图</h1>
+          <div class="subtle">输入或使用邮件链接里的 ticker，打开公开行情交互图。</div>
+        </div>
+        <div class="controls">
+          <label for="symbolInput">Ticker</label>
+          <input id="symbolInput" autocomplete="off" inputmode="latin" />
+          <button type="button" id="loadButton">打开</button>
+        </div>
+      </header>
+
+      <section class="workspace">
+        <div class="chart-panel">
+          <div id="tradingviewContainer"></div>
+        </div>
+        <aside class="side-panel">
+          <div class="symbol" id="activeSymbol">--</div>
+          <div class="note">这里不会读取或发布你的完整持仓列表。页面只根据 URL 中的单个 symbol 加载公开市场图表。</div>
+          <div class="links">
+            <a id="yahooLink" target="_blank" rel="noopener noreferrer">Yahoo Finance 图表</a>
+            <a id="tradingViewLink" target="_blank" rel="noopener noreferrer">TradingView 页面</a>
+            <a id="nasdaqLink" target="_blank" rel="noopener noreferrer">Nasdaq 页面</a>
+          </div>
+          <div class="signal">邮件里的静态图用于快速阅读；这个页面用于拖拽、缩放和切换时间周期。真正交易前仍要回到券商和正式行情源复核。</div>
+        </aside>
+      </section>
+
+      <footer>本页只拼接公开行情页面，不保存持仓数量、成本价、邮箱或 API key。</footer>
+    </main>
+
+    <script src="https://s3.tradingview.com/tv.js"></script>
+    <script>
+      const symbolInput = document.getElementById("symbolInput");
+      const loadButton = document.getElementById("loadButton");
+      const activeSymbol = document.getElementById("activeSymbol");
+      const yahooLink = document.getElementById("yahooLink");
+      const tradingViewLink = document.getElementById("tradingViewLink");
+      const nasdaqLink = document.getElementById("nasdaqLink");
+      const containerId = "tradingviewContainer";
+
+      function normalizeSymbol(value) {
+        return String(value || "")
+          .trim()
+          .toUpperCase()
+          .replace(/[^A-Z0-9.-]/g, "");
+      }
+
+      function querySymbol() {
+        return normalizeSymbol(new URLSearchParams(window.location.search).get("symbol"));
+      }
+
+      function activeTicker() {
+        return normalizeSymbol(symbolInput.value) || "NVDA";
+      }
+
+      function syncUrl(symbol) {
+        const url = new URL(window.location.href);
+        url.searchParams.set("symbol", symbol);
+        window.history.replaceState({}, "", url);
+      }
+
+      function setLinks(symbol) {
+        activeSymbol.textContent = symbol;
+        yahooLink.href = `https://finance.yahoo.com/quote/${encodeURIComponent(symbol)}/chart/`;
+        tradingViewLink.href = `https://www.tradingview.com/chart/?symbol=${encodeURIComponent(symbol)}`;
+        nasdaqLink.href = `https://www.nasdaq.com/market-activity/stocks/${encodeURIComponent(symbol.toLowerCase())}`;
+      }
+
+      function renderWidget(symbol) {
+        document.getElementById(containerId).innerHTML = "";
+        setLinks(symbol);
+        syncUrl(symbol);
+        if (!window.TradingView) {
+          document.getElementById(containerId).innerHTML =
+            '<div style="padding: 22px; color: #667085;">TradingView 脚本没有加载成功，请使用右侧 Yahoo Finance 或 TradingView 链接。</div>';
+          return;
+        }
+        new window.TradingView.widget({
+          autosize: true,
+          symbol,
+          interval: "D",
+          timezone: "America/New_York",
+          theme: "light",
+          style: "3",
+          locale: "zh_CN",
+          toolbar_bg: "#ffffff",
+          enable_publishing: false,
+          hide_side_toolbar: false,
+          allow_symbol_change: true,
+          container_id: containerId,
+        });
+      }
+
+      function loadCurrent() {
+        const symbol = activeTicker();
+        symbolInput.value = symbol;
+        renderWidget(symbol);
+      }
+
+      loadButton.addEventListener("click", loadCurrent);
+      symbolInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") loadCurrent();
+      });
+
+      symbolInput.value = querySymbol() || "NVDA";
+      loadCurrent();
+    </script>
+  </body>
+</html>

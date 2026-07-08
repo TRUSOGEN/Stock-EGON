@@ -39,7 +39,7 @@
 
 新闻源推荐优先配置 `BRAVE_API_KEY` 或 `TAVILY_API_KEY`，成本通常比 Alpha Vantage 更友好。也支持 `SERPAPI_API_KEY`、`ALPHA_VANTAGE_API_KEY`，并兼容逗号分隔的 `SERPAPI_API_KEYS`、`TAVILY_API_KEYS`、`BRAVE_API_KEYS`。当前默认顺序是 `brave,tavily,serpapi,alphavantage`；可通过 `NEWS_PROVIDER_ORDER` 调整。报告会把每只持仓的最新标题压缩进市场背景，并把 earnings、SEC、downgrade、Fed、inflation 等关键词映射为粗粒度风险标签。
 
-QQ 邮箱推送推荐只配置 `EMAIL_ADDRESS` 和 `EMAIL_AUTH_CODE`。`EMAIL_ADDRESS` 填 QQ 邮箱地址，`EMAIL_AUTH_CODE` 填 QQ 邮箱生成的 SMTP 授权码。workflow 会自动使用 `smtp.qq.com:587`，发件人和收件人默认都是 `EMAIL_ADDRESS`。这些值都应放在 GitHub Secrets。若希望邮件正文内嵌每只股票一张价格和成交量报价图，再额外配置 `EMAIL_INCLUDE_CHARTS=true`。
+QQ 邮箱推送推荐只配置 `EMAIL_ADDRESS` 和 `EMAIL_AUTH_CODE`。`EMAIL_ADDRESS` 填 QQ 邮箱地址，`EMAIL_AUTH_CODE` 填 QQ 邮箱生成的 SMTP 授权码。workflow 会自动使用 `smtp.qq.com:587`，发件人和收件人默认都是 `EMAIL_ADDRESS`。这些值都应放在 GitHub Secrets。若希望邮件正文内嵌每只股票一张价格和成交量报价图，再额外配置 `EMAIL_INCLUDE_CHARTS=true`。每张图下方会带一个“打开交互图”链接，链接只包含单个 ticker，不会把完整持仓列表或成本价发布到 Pages。
 
 其他邮箱可继续配置完整 SMTP 字段：`EMAIL_SMTP_HOST`、`EMAIL_SMTP_PORT`、`EMAIL_USERNAME`、`EMAIL_PASSWORD`、`EMAIL_FROM`、`EMAIL_TO`。配置后 workflow 会在生成日报或周报 JSON 后调用 `scripts/send_email_report.py`，把报告整理成更适合邮件阅读的文本和 HTML 正文后发出。Gmail、QQ 邮箱、Outlook 等通常需要应用专用密码，不要填写网页登录密码。
 

@@ -23,6 +23,8 @@ except ModuleNotFoundError:  # pragma: no cover - 仅在极简测试环境触发
 PostClient = Callable[..., Any]
 SMTPFactory = Callable[..., Any]
 
+DEFAULT_INTERACTIVE_CHART_URL = "https://trusogen.github.io/Stock-EGON/stock-chart.html"
+
 
 @dataclass(frozen=True)
 class EmailAttachment:
@@ -88,6 +90,7 @@ def build_email_message(
     sender: str,
     recipients: str | list[str],
     attachments: list[EmailAttachment | dict[str, Any]] | None = None,
+    interactive_chart_url: str | None = None,
 ) -> EmailMessage:
     """把报告 Markdown 包装为 text+html 邮件。"""
     content = markdown.strip()
@@ -102,7 +105,14 @@ def build_email_message(
     message["To"] = ", ".join(recipient_list)
     normalized_attachments = _normalize_attachments(attachments)
     message.set_content(render_email_plain_text(content))
-    message.add_alternative(render_email_html(content, inline_images=normalized_attachments), subtype="html")
+    message.add_alternative(
+        render_email_html(
+            content,
+            inline_images=normalized_attachments,
+            interactive_chart_url=interactive_chart_url,
+        ),
+        subtype="html",
+    )
     html_part = message.get_body(preferencelist=("html",))
     for attachment in normalized_attachments:
         maintype, subtype = _split_content_type(attachment.content_type)
@@ -139,6 +149,7 @@ def send_email_markdown(
     timeout: int = 10,
     smtp_factory: SMTPFactory | None = None,
     attachments: list[EmailAttachment | dict[str, Any]] | None = None,
+    interactive_chart_url: str | None = None,
 ) -> dict[str, Any]:
     """通过 SMTP 发送 Markdown 报告，并返回可审计的发送结果。"""
     shortcut_email = os.environ.get("EMAIL_ADDRESS")
@@ -151,6 +162,7 @@ def send_email_markdown(
     from_addr = sender or os.environ.get("EMAIL_FROM") or login_user
     to_addrs = recipients if recipients is not None else os.environ.get("EMAIL_TO") or shortcut_email
     tls_enabled = use_tls if use_tls is not None else _parse_bool(os.environ.get("EMAIL_USE_TLS"), default=True)
+    chart_url = interactive_chart_url or os.environ.get("INTERACTIVE_CHART_URL") or DEFAULT_INTERACTIVE_CHART_URL
     if not host or not from_addr or not to_addrs:
         return {"sent": False, "skipped": True, "reason": "email_not_configured"}
     if login_user and not login_password:
@@ -162,6 +174,7 @@ def send_email_markdown(
         sender=from_addr,
         recipients=to_addrs,
         attachments=attachments,
+        interactive_chart_url=chart_url,
     )
     factory = smtp_factory or smtplib.SMTP
     smtp = factory(host, raw_port, timeout=timeout)
@@ -201,7 +214,12 @@ def render_email_plain_text(markdown: str) -> str:
     return "\n".join(_squash_blank_lines(lines)).strip()
 
 
-def render_email_html(markdown: str, *, inline_images: list[EmailAttachment] | None = None) -> str:
+def render_email_html(
+    markdown: str,
+    *,
+    inline_images: list[EmailAttachment] | None = None,
+    interactive_chart_url: str | None = None,
+) -> str:
     """把 Markdown 报告转换成简单、稳定的 HTML 邮件正文。"""
     parts = [
         "<html><body style=\"font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1f2933; line-height: 1.6;\">"
@@ -228,7 +246,7 @@ def render_email_html(markdown: str, *, inline_images: list[EmailAttachment] | N
         for image in images_by_symbol.get(current_symbol, []):
             if id(image) in inserted_image_ids:
                 continue
-            parts.append(_render_inline_image_html(image))
+            parts.append(_render_inline_image_html(image, interactive_chart_url=interactive_chart_url))
             inserted_image_ids.add(id(image))
 
     for raw_line in markdown.splitlines():
@@ -258,7 +276,7 @@ def render_email_html(markdown: str, *, inline_images: list[EmailAttachment] | N
         if unmatched_images:
             parts.append("<h2>报价图</h2>")
             for image in unmatched_images:
-                parts.append(_render_inline_image_html(image))
+                parts.append(_render_inline_image_html(image, interactive_chart_url=interactive_chart_url))
     parts.append("</body></html>")
     return "".join(parts)
 
@@ -345,17 +363,34 @@ def _symbol_from_heading(value: str) -> str | None:
     return match.group(1).upper()
 
 
-def _render_inline_image_html(image: EmailAttachment) -> str:
+def _render_inline_image_html(image: EmailAttachment, *, interactive_chart_url: str | None = None) -> str:
     """渲染邮件正文内嵌图片。"""
     alt_text = html.escape(image.filename)
     content_id = html.escape(image.content_id or image.filename, quote=True)
+    symbol = _symbol_from_filename(image.filename)
+    link = _interactive_chart_link(interactive_chart_url, symbol)
+    link_html = (
+        f'<div style="margin-top: 8px;"><a href="{html.escape(link, quote=True)}" '
+        'style="color: #1f67b2; font-size: 14px; text-decoration: none;">打开交互图</a></div>'
+        if link
+        else ""
+    )
     return (
         '<figure style="margin: 16px 0 22px 0;">'
         f'<img src="cid:{content_id}" alt="{alt_text}" '
         'style="max-width: 100%; height: auto; border: 1px solid #d7e3ee; border-radius: 8px;" />'
         f'<figcaption style="color: #5e6875; font-size: 13px;">{alt_text}</figcaption>'
+        f"{link_html}"
         "</figure>"
     )
+
+
+def _interactive_chart_link(base_url: str | None, symbol: str | None) -> str | None:
+    """拼出单票交互图链接。"""
+    if not base_url or not symbol:
+        return None
+    separator = "&" if "?" in base_url else "?"
+    return f"{base_url}{separator}symbol={html.escape(symbol, quote=True)}"
 
 
 def _split_content_type(value: str) -> tuple[str, str]:

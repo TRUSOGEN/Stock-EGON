@@ -180,6 +180,33 @@ class TestEmailNotifications(unittest.TestCase):
         self.assertLess(spex_image, nvda_heading)
         self.assertLess(nvda_heading, nvda_image)
 
+    def test_build_email_message_places_interactive_chart_link_under_chart_image(self) -> None:
+        """每只股票的静态图下方应提供对应的交互图链接。"""
+        markdown = "\n".join(
+            [
+                "# 每日美股持仓简报",
+                "",
+                "### NVDA — 重点观察",
+                "NVDA 目前占组合权重 27.00%，继续观察。",
+            ]
+        )
+        message = build_email_message(
+            markdown,
+            subject="Stock-EGON 日报",
+            sender="bot@example.com",
+            recipients=["user@example.com"],
+            attachments=[
+                {"filename": "NVDA-price-volume.png", "content_type": "image/png", "data": b"\x89PNG\r\n\x1a\nnvda"},
+            ],
+            interactive_chart_url="https://example.test/stock-chart.html",
+        )
+
+        html = message.get_body(preferencelist=("html",)).get_content()
+        image_index = html.index("NVDA-price-volume.png")
+        link_index = html.index("https://example.test/stock-chart.html?symbol=NVDA")
+        self.assertLess(image_index, link_index)
+        self.assertIn("打开交互图", html)
+
     def test_send_email_markdown_skips_when_email_missing(self) -> None:
         """未配置邮件参数时明确跳过，不把报告任务打失败。"""
         result = send_email_markdown("# report", smtp_host=None, sender=None, recipients=None, smtp_factory=FakeSMTP)

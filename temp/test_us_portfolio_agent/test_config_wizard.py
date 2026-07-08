@@ -76,6 +76,16 @@ class TestConfigWizard(unittest.TestCase):
         self.assertIn("actions/deploy-pages@v4", content)
         self.assertIn("actions/upload-pages-artifact@v3", content)
 
+    def test_docs_include_interactive_stock_chart_page(self) -> None:
+        """docs 应提供可由邮件链接打开的交互图页面。"""
+        html = (PROJECT_ROOT / "docs" / "stock-chart.html").read_text(encoding="utf-8")
+
+        self.assertIn("symbol", html)
+        self.assertIn("Stock-EGON 交互图", html)
+        self.assertIn("TradingView", html)
+        self.assertIn("finance.yahoo.com", html)
+        self.assertNotIn("data/us-stock-charts.json", html)
+
     def test_config_wizard_persists_last_form_values_locally(self) -> None:
         """配置向导应在浏览器本地记住上一次填写的内容。"""
         html = (PROJECT_ROOT / "docs" / "config-wizard.html").read_text(encoding="utf-8")
