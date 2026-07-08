@@ -26,11 +26,12 @@ SMTPFactory = Callable[..., Any]
 
 @dataclass(frozen=True)
 class EmailAttachment:
-    """邮件二进制附件。"""
+    """邮件二进制图片资源。"""
 
     filename: str
     content_type: str
     data: bytes
+    content_id: str | None = None
 
 
 def build_wechat_markdown_payload(markdown: str) -> dict[str, Any]:
@@ -99,15 +100,27 @@ def build_email_message(
     message["Subject"] = subject
     message["From"] = sender
     message["To"] = ", ".join(recipient_list)
+    normalized_attachments = _normalize_attachments(attachments)
     message.set_content(render_email_plain_text(content))
-    message.add_alternative(render_email_html(content), subtype="html")
-    for attachment in _normalize_attachments(attachments):
+    message.add_alternative(render_email_html(content, inline_images=normalized_attachments), subtype="html")
+    html_part = message.get_body(preferencelist=("html",))
+    for attachment in normalized_attachments:
         maintype, subtype = _split_content_type(attachment.content_type)
-        message.add_attachment(
+        if html_part is None:
+            message.add_attachment(
+                attachment.data,
+                maintype=maintype,
+                subtype=subtype,
+                filename=attachment.filename,
+            )
+            continue
+        html_part.add_related(
             attachment.data,
             maintype=maintype,
             subtype=subtype,
+            cid=f"<{attachment.content_id}>",
             filename=attachment.filename,
+            disposition="inline",
         )
     return message
 
@@ -167,7 +180,7 @@ def send_email_markdown(
         "smtp_host": host,
         "smtp_port": raw_port,
         "recipients": _normalize_recipients(to_addrs),
-        "attachment_filenames": [item.filename for item in _normalize_attachments(attachments)],
+        "inline_image_filenames": [item.filename for item in _normalize_attachments(attachments)],
     }
 
 
@@ -188,7 +201,7 @@ def render_email_plain_text(markdown: str) -> str:
     return "\n".join(_squash_blank_lines(lines)).strip()
 
 
-def render_email_html(markdown: str) -> str:
+def render_email_html(markdown: str, *, inline_images: list[EmailAttachment] | None = None) -> str:
     """把 Markdown 报告转换成简单、稳定的 HTML 邮件正文。"""
     parts = [
         "<html><body style=\"font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1f2933; line-height: 1.6;\">"
@@ -223,6 +236,13 @@ def render_email_html(markdown: str) -> str:
         parts.append("<ul>")
         parts.extend(f"<li>{item}</li>" for item in pending_list)
         parts.append("</ul>")
+    if inline_images:
+        parts.append("<h2>K 线图</h2>")
+        for image in inline_images:
+            alt_text = html.escape(image.filename)
+            parts.append(
+                f'<figure style="margin: 16px 0;"><img src="cid:{html.escape(image.content_id or image.filename, quote=True)}" alt="{alt_text}" style="max-width: 100%; height: auto; border: 1px solid #d6e2db; border-radius: 8px;" /><figcaption style="color: #5e6b63; font-size: 13px;">{alt_text}</figcaption></figure>'
+            )
     parts.append("</body></html>")
     return "".join(parts)
 
@@ -248,7 +268,7 @@ def _normalize_recipients(recipients: str | list[str]) -> list[str]:
 def _normalize_attachments(
     attachments: list[EmailAttachment | dict[str, Any]] | None,
 ) -> list[EmailAttachment]:
-    """把调用方提供的附件规范化为 dataclass。"""
+    """把调用方提供的图片资源规范化为 dataclass。"""
     normalized: list[EmailAttachment] = []
     for item in attachments or []:
         if isinstance(item, EmailAttachment):
@@ -259,9 +279,26 @@ def _normalize_attachments(
                 filename=str(item["filename"]),
                 content_type=str(item["content_type"]),
                 data=bytes(item["data"]),
+                content_id=str(item.get("content_id") or _content_id_for_filename(str(item["filename"]))),
             )
         )
-    return normalized
+    return [
+        item
+        if item.content_id
+        else EmailAttachment(
+            filename=item.filename,
+            content_type=item.content_type,
+            data=item.data,
+            content_id=_content_id_for_filename(item.filename),
+        )
+        for item in normalized
+    ]
+
+
+def _content_id_for_filename(filename: str) -> str:
+    """根据文件名生成稳定的 Content-ID。"""
+    safe = re.sub(r"[^A-Za-z0-9_.-]+", "-", filename).strip("-") or "chart"
+    return f"{safe}@stock-egon"
 
 
 def _split_content_type(value: str) -> tuple[str, str]:

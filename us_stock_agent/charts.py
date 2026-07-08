@@ -1,7 +1,7 @@
 """美股持仓邮件图表。
 
-本模块负责把单票历史 OHLC 数据绘制成适合邮件附件的 PNG 图片。当前输出是一张
-三联图，分别展示 1 周、1 月、1 年三个时间窗，避免邮件里出现大量零散附件，也让
+本模块负责把单票历史 OHLC 数据绘制成适合邮件正文内嵌的 PNG 图片。当前输出是一张
+三联图，分别展示 1 周、1 月、1 年三个时间窗，避免邮件里出现大量零散图片，也让
 读者能一眼看到短中长期结构。
 """
 
@@ -24,27 +24,27 @@ CHART_PERIODS = (
 )
 
 
-def build_symbol_chart_attachments(
+def build_symbol_chart_images(
     symbols: list[str],
     *,
     market_provider: MarketDataProvider,
 ) -> list[EmailAttachment]:
-    """为每个 ticker 生成一张三联 K 线图附件。"""
-    attachments: list[EmailAttachment] = []
+    """为每个 ticker 生成一张三联 K 线图。"""
+    images: list[EmailAttachment] = []
     for symbol in symbols:
         frames = {
             label: market_provider.fetch_history(symbol, period=period)
             for label, period in CHART_PERIODS
         }
         payload = render_symbol_triptych_png(symbol, frames)
-        attachments.append(
+        images.append(
             EmailAttachment(
                 filename=f"{symbol}-kline.png",
                 content_type="image/png",
                 data=payload,
             )
         )
-    return attachments
+    return images
 
 
 def render_symbol_triptych_png(symbol: str, frames: Mapping[str, pd.DataFrame]) -> bytes:

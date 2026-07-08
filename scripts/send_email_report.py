@@ -20,7 +20,7 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from a_stock_quant.output import dumps_json, make_error_result, make_result
-from us_stock_agent.charts import build_symbol_chart_attachments
+from us_stock_agent.charts import build_symbol_chart_images
 from us_stock_agent.llm_enhancer import enhance_report_markdown
 from us_stock_agent.market_data import YFinanceProvider
 from us_stock_agent.notifications import _parse_bool, send_email_markdown
@@ -41,17 +41,17 @@ def main() -> int:
         report = _load_report(Path(args.report_file))
         markdown = _extract_markdown(report)
         llm_result = enhance_report_markdown(markdown, report=report)
-        chart_attachments = _build_chart_attachments(report)
+        chart_images = _build_chart_images(report)
         send_result = send_email_markdown(
             llm_result.markdown,
             subject=args.subject or _default_subject(report),
-            attachments=chart_attachments,
+            attachments=chart_images,
         )
         send_result["llm_enhancement"] = llm_result.to_metadata()
-        send_result["chart_attachments"] = {
-            "enabled": bool(chart_attachments),
-            "count": len(chart_attachments),
-            "filenames": [item.filename for item in chart_attachments],
+        send_result["inline_chart_images"] = {
+            "enabled": bool(chart_images),
+            "count": len(chart_images),
+            "filenames": [item.filename for item in chart_images],
         }
         print(
             dumps_json(
@@ -111,15 +111,15 @@ def _default_subject(report: dict[str, Any]) -> str:
     return "Stock-EGON 每日美股持仓简报"
 
 
-def _build_chart_attachments(report: dict[str, Any]):
-    """按需为邮件生成每只持仓的 K 线附件。"""
+def _build_chart_images(report: dict[str, Any]):
+    """按需为邮件生成每只持仓的正文内嵌 K 线图。"""
     if not _parse_bool(os.environ.get("EMAIL_INCLUDE_CHARTS"), default=False):
         return []
     symbols = _extract_symbols(report)
     if not symbols:
         raise ValueError("已启用 EMAIL_INCLUDE_CHARTS，但报告里没有可用 symbols。")
     provider = YFinanceProvider()
-    return build_symbol_chart_attachments(symbols, market_provider=provider)
+    return build_symbol_chart_images(symbols, market_provider=provider)
 
 
 def _extract_symbols(report: dict[str, Any]) -> list[str]:

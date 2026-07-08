@@ -121,8 +121,8 @@ class TestEmailNotifications(unittest.TestCase):
         self.assertNotIn("# 每日美股持仓简报", text_part.get_content())
         self.assertIn("<h1>", html_part.get_content())
 
-    def test_build_email_message_supports_binary_attachments(self) -> None:
-        """图表附件会作为二进制附件加入邮件。"""
+    def test_build_email_message_embeds_chart_images_in_html_body(self) -> None:
+        """图表图片应以内嵌正文图片加入邮件。"""
         message = build_email_message(
             "# 每日美股持仓简报\n\n组合净值: 100 USD",
             subject="Stock-EGON 日报",
@@ -137,10 +137,15 @@ class TestEmailNotifications(unittest.TestCase):
             ],
         )
 
+        html_part = message.get_body(preferencelist=("html",))
+        self.assertIsNotNone(html_part)
+        self.assertIn('src="cid:', html_part.get_content())
         attachments = list(message.iter_attachments())
-        self.assertEqual(len(attachments), 1)
-        self.assertEqual(attachments[0].get_filename(), "NVDA-chart.png")
-        self.assertEqual(attachments[0].get_content_type(), "image/png")
+        self.assertEqual(attachments, [])
+        image_parts = [part for part in message.walk() if part.get_content_type() == "image/png"]
+        self.assertEqual(len(image_parts), 1)
+        self.assertEqual(image_parts[0].get_filename(), "NVDA-chart.png")
+        self.assertEqual(image_parts[0].get_content_disposition(), "inline")
 
     def test_send_email_markdown_skips_when_email_missing(self) -> None:
         """未配置邮件参数时明确跳过，不把报告任务打失败。"""

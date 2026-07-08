@@ -8,7 +8,7 @@ from pathlib import Path
 import pandas as pd
 
 from us_stock_agent.decision import classify_action, score_position
-from us_stock_agent.models import Holding, MarketSnapshot, Portfolio
+from us_stock_agent.models import ActionRecommendation, Holding, MarketSnapshot, Portfolio, PositionScore
 from us_stock_agent.portfolio import build_portfolio_view
 from us_stock_agent.reports import render_daily_report
 
@@ -69,6 +69,42 @@ class TestReportReadability(unittest.TestCase):
         self.assertIn("一句话:", report)
         self.assertNotIn("| Ticker | 动作 | 评分 | 权重 |", report)
         self.assertNotIn("## 持仓动作表", report)
+
+    def test_daily_report_frames_add_candidates_as_rebalance_not_cash_spend(self) -> None:
+        """买入候选应明确来自调仓资金，不默认消耗现金。"""
+        portfolio = Portfolio(
+            currency="USD",
+            cash=4.66,
+            holdings=[Holding(symbol="NVDA", quantity=5)],
+            risk_profile="aggressive",
+        )
+        view = build_portfolio_view(
+            portfolio,
+            {"NVDA": MarketSnapshot(symbol="NVDA", price=195, previous_close=194)},
+        )
+        score = PositionScore(
+            symbol="NVDA",
+            total_score=82,
+            trend_score=25,
+            momentum_score=20,
+            valuation_score=15,
+            risk_score=15,
+            concentration_score=7,
+            evidence=["趋势向上"],
+        )
+        action = ActionRecommendation(
+            symbol="NVDA",
+            action="add_candidate",
+            label="换仓候选",
+            rationale=["趋势向上"],
+            risk_controls=["等待价格确认"],
+        )
+
+        report = render_daily_report(view=view, scored_actions=[(score, action)])
+
+        self.assertIn("换仓候选", report)
+        self.assertIn("减仓或卖出释放的资金", report)
+        self.assertNotIn("可以考虑加一点", report)
 
     def test_workflow_can_be_paused_with_repository_variable(self) -> None:
         """设置 REPORT_ENABLED=false 应能暂停 GitHub Actions 报告任务。"""

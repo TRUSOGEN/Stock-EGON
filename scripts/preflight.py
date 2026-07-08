@@ -3,7 +3,7 @@
 
 脚本只验证本地环境变量是否结构完整，不会访问网络，也不会打印任何 secret 的原值。
 它适合在本地终端或 GitHub Actions 里先跑一遍，提前发现持仓 JSON、邮箱、LLM、
-新闻源和图表附件开关中的结构性问题。
+新闻源和正文内嵌图表开关中的结构性问题。
 """
 
 from __future__ import annotations

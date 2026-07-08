@@ -27,10 +27,11 @@ def render_daily_report(
     buckets = _bucket_actions(scored_actions)
     lines.extend(
         [
-            f"- 可以考虑加一点: {_symbols_or_none(buckets['add_candidate'])}",
+            f"- 换仓候选: {_symbols_or_none(buckets['add_candidate'])}",
             f"- 需要减仓或复核: {_symbols_or_none(buckets['trim_candidate'])}",
             f"- 先拿着: {_symbols_or_none(buckets['hold'])}",
             f"- 先别动，只观察: {_symbols_or_none(buckets['watch'])}",
+            "- 换仓原则: 买入候选默认用减仓或卖出释放的资金承接，不按新增现金处理。",
         ]
     )
     if market_notes:
@@ -67,6 +68,7 @@ def render_weekly_review(
         "## 本周复盘重点",
     ]
     lines.extend(f"- {note}" for note in (weekly_notes or ["复盘技术趋势、组合集中度和下周事件风险。"]))
+    lines.append("- 换仓原则: 新买入默认来自减仓或卖出释放的资金，不按新增现金处理。")
     if portfolio_risk:
         lines.extend(_portfolio_risk_section(portfolio_risk))
     lines.append("")
@@ -113,7 +115,7 @@ def _position_plain_language_section(score: PositionScore, action: ActionRecomme
 def _plain_action_sentence(action: str) -> str:
     """把动作标签翻译成更接近人话的解释。"""
     if action == "add_candidate":
-        return "走势还可以，可以放进加仓候选，但等价格确认，别追高。"
+        return "走势还可以，可以放进换仓候选；若要买，优先用减仓或卖出释放的资金承接，别追高。"
     if action == "trim_candidate":
         return "风险或趋势不够好，先复核仓位，必要时减一点。"
     if action == "hold":
