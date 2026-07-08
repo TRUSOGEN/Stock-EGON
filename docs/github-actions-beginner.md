@@ -30,7 +30,7 @@ flowchart LR
 - 持仓区填 `Ticker`、`数量`、`成本价`。
 - 邮件区如果用 QQ 邮箱，只填 `QQ 邮箱` 和 `QQ 邮箱授权码`。
 - 新闻源区建议先填 `Brave Search key` 或 `Tavily key`。
-- 如果你希望邮件正文内嵌每只股票的周、月、年三联 K 线图，保留 `正文内嵌每只股票 K 线图 = 是`。
+- 如果你希望邮件正文内嵌每只股票一张价格和成交量报价图，保留 `正文内嵌每只股票报价图 = 是`。
 
 页面右侧会自动生成一大段终端命令。你只需要复制那一段。
 
@@ -65,7 +65,7 @@ gh auth login
 | `EMAIL_AUTH_CODE` | QQ 邮箱 SMTP 授权码 |
 | `BRAVE_API_KEY` | Brave Search key，可选但推荐 |
 | `TAVILY_API_KEY` | Tavily key，可选但推荐 |
-| `EMAIL_INCLUDE_CHARTS` | `true`，表示邮件正文内嵌每只股票的 K 线图 |
+| `EMAIL_INCLUDE_CHARTS` | `true`，表示邮件正文内嵌每只股票的报价图 |
 
 如果你没有新闻源 key，也可以先只填前三项。这样 workflow 仍然能跑，只是新闻背景会更弱。
 
@@ -77,7 +77,7 @@ gh auth login
 - QQ 邮箱或 SMTP 配置是不是完整。
 - Ark、DeepSeek、通用 LLM 配置是不是缺字段。
 - 新闻源顺序里有没有写错 provider 名称。
-- 正文 K 线图开关打开时，依赖是否完整。
+- 正文报价图开关打开时，依赖是否完整。
 
 你本地如果装好了依赖，可以先运行：
 
@@ -112,7 +112,7 @@ python scripts/preflight.py
 
 - 收件邮箱会收到一封主题为 `Stock-EGON 每日美股持仓简报` 的邮件。
 - 邮件正文是适合阅读的普通文本和 HTML，而不是原始 Markdown 符号。
-- 邮件正文中每只股票会内嵌一张图片，图片里包含 1 周、1 月、1 年三联 K 线图。
+- 邮件正文中每只股票会内嵌一张图片，图片里包含最近约 3 个月的价格折线、浅色面积和成交量柱。
 
 如果没收到邮件，优先检查：
 

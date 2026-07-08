@@ -206,24 +206,43 @@ def render_email_html(markdown: str, *, inline_images: list[EmailAttachment] | N
     parts = [
         "<html><body style=\"font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1f2933; line-height: 1.6;\">"
     ]
+    images_by_symbol = _group_images_by_symbol(inline_images or [])
+    inserted_image_ids: set[int] = set()
+    current_symbol: str | None = None
     pending_list: list[str] = []
+
+    def flush_pending_list() -> None:
+        """把暂存的 Markdown 列表落到 HTML。"""
+        nonlocal pending_list
+        if not pending_list:
+            return
+        parts.append("<ul>")
+        parts.extend(f"<li>{item}</li>" for item in pending_list)
+        parts.append("</ul>")
+        pending_list = []
+
+    def insert_current_symbol_images() -> None:
+        """在当前股票小节结束时插入对应报价图。"""
+        if current_symbol is None:
+            return
+        for image in images_by_symbol.get(current_symbol, []):
+            if id(image) in inserted_image_ids:
+                continue
+            parts.append(_render_inline_image_html(image))
+            inserted_image_ids.add(id(image))
+
     for raw_line in markdown.splitlines():
         line = raw_line.strip()
         if not line:
-            if pending_list:
-                parts.append("<ul>")
-                parts.extend(f"<li>{item}</li>" for item in pending_list)
-                parts.append("</ul>")
-                pending_list = []
+            flush_pending_list()
             continue
         if line.startswith("- "):
             pending_list.append(_render_inline_html(line[2:]))
             continue
-        if pending_list:
-            parts.append("<ul>")
-            parts.extend(f"<li>{item}</li>" for item in pending_list)
-            parts.append("</ul>")
-            pending_list = []
+        flush_pending_list()
+        if line.startswith(("# ", "## ", "### ")):
+            insert_current_symbol_images()
+            current_symbol = _symbol_from_heading(line[4:]) if line.startswith("### ") else None
         if line.startswith("### "):
             parts.append(f"<h3>{_render_inline_html(line[4:])}</h3>")
         elif line.startswith("## "):
@@ -232,17 +251,14 @@ def render_email_html(markdown: str, *, inline_images: list[EmailAttachment] | N
             parts.append(f"<h1>{_render_inline_html(line[2:])}</h1>")
         else:
             parts.append(f"<p>{_render_inline_html(line)}</p>")
-    if pending_list:
-        parts.append("<ul>")
-        parts.extend(f"<li>{item}</li>" for item in pending_list)
-        parts.append("</ul>")
+    flush_pending_list()
+    insert_current_symbol_images()
     if inline_images:
-        parts.append("<h2>K 线图</h2>")
-        for image in inline_images:
-            alt_text = html.escape(image.filename)
-            parts.append(
-                f'<figure style="margin: 16px 0;"><img src="cid:{html.escape(image.content_id or image.filename, quote=True)}" alt="{alt_text}" style="max-width: 100%; height: auto; border: 1px solid #d6e2db; border-radius: 8px;" /><figcaption style="color: #5e6b63; font-size: 13px;">{alt_text}</figcaption></figure>'
-            )
+        unmatched_images = [image for image in inline_images if id(image) not in inserted_image_ids]
+        if unmatched_images:
+            parts.append("<h2>报价图</h2>")
+            for image in unmatched_images:
+                parts.append(_render_inline_image_html(image))
     parts.append("</body></html>")
     return "".join(parts)
 
@@ -299,6 +315,47 @@ def _content_id_for_filename(filename: str) -> str:
     """根据文件名生成稳定的 Content-ID。"""
     safe = re.sub(r"[^A-Za-z0-9_.-]+", "-", filename).strip("-") or "chart"
     return f"{safe}@stock-egon"
+
+
+def _group_images_by_symbol(images: list[EmailAttachment]) -> dict[str, list[EmailAttachment]]:
+    """按图片文件名前缀提取 ticker 并分组。"""
+    grouped: dict[str, list[EmailAttachment]] = {}
+    for image in images:
+        symbol = _symbol_from_filename(image.filename)
+        if symbol is None:
+            continue
+        grouped.setdefault(symbol, []).append(image)
+    return grouped
+
+
+def _symbol_from_filename(filename: str) -> str | None:
+    """从 `SPEX-price-volume.png` 一类文件名中提取 ticker。"""
+    match = re.match(r"^([A-Za-z][A-Za-z0-9.]*)", filename)
+    if not match:
+        return None
+    return match.group(1).upper()
+
+
+def _symbol_from_heading(value: str) -> str | None:
+    """从股票小节标题中提取 ticker。"""
+    text = _strip_inline_markdown(value).strip()
+    match = re.match(r"^([A-Za-z][A-Za-z0-9.]*)\b", text)
+    if not match:
+        return None
+    return match.group(1).upper()
+
+
+def _render_inline_image_html(image: EmailAttachment) -> str:
+    """渲染邮件正文内嵌图片。"""
+    alt_text = html.escape(image.filename)
+    content_id = html.escape(image.content_id or image.filename, quote=True)
+    return (
+        '<figure style="margin: 16px 0 22px 0;">'
+        f'<img src="cid:{content_id}" alt="{alt_text}" '
+        'style="max-width: 100%; height: auto; border: 1px solid #d7e3ee; border-radius: 8px;" />'
+        f'<figcaption style="color: #5e6875; font-size: 13px;">{alt_text}</figcaption>'
+        "</figure>"
+    )
 
 
 def _split_content_type(value: str) -> tuple[str, str]:

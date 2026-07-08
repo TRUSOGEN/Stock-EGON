@@ -112,7 +112,7 @@ def _default_subject(report: dict[str, Any]) -> str:
 
 
 def _build_chart_images(report: dict[str, Any]):
-    """按需为邮件生成每只持仓的正文内嵌 K 线图。"""
+    """按需为邮件生成每只持仓的正文内嵌报价图。"""
     if not _parse_bool(os.environ.get("EMAIL_INCLUDE_CHARTS"), default=False):
         return []
     symbols = _extract_symbols(report)

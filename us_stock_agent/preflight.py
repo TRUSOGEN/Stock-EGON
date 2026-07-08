@@ -180,12 +180,12 @@ def _check_charting(
     """检查邮件图表开关和本地依赖。"""
     enabled = _parse_bool(env.get("EMAIL_INCLUDE_CHARTS"), default=False)
     if not enabled:
-        checks.append({"name": "charts", "status": "skipped", "detail": "未启用邮件正文 K 线图。"})
+        checks.append({"name": "charts", "status": "skipped", "detail": "未启用邮件正文报价图。"})
         return
     missing = [name for name in ("pandas", "PIL", "yfinance") if importlib.util.find_spec(name) is None]
     if missing:
-        errors.append(f"邮件正文 K 线图依赖缺失: {', '.join(missing)}。")
-        checks.append({"name": "charts", "status": "error", "detail": "邮件正文 K 线图已启用，但本地依赖不完整。"})
+        errors.append(f"邮件正文报价图依赖缺失: {', '.join(missing)}。")
+        checks.append({"name": "charts", "status": "error", "detail": "邮件正文报价图已启用，但本地依赖不完整。"})
         return
-    checks.append({"name": "charts", "status": "ok", "detail": "邮件正文将内嵌每只股票的周/月/年三联 K 线图。"})
-    warnings.append("正文内嵌 K 线图会增加邮件体积；持仓很多时应关注收件箱大小限制。")
+    checks.append({"name": "charts", "status": "ok", "detail": "邮件正文将内嵌每只股票一张价格和成交量报价图。"})
+    warnings.append("正文内嵌报价图会增加邮件体积；持仓很多时应关注收件箱大小限制。")

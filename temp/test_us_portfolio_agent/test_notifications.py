@@ -147,6 +147,39 @@ class TestEmailNotifications(unittest.TestCase):
         self.assertEqual(image_parts[0].get_filename(), "NVDA-chart.png")
         self.assertEqual(image_parts[0].get_content_disposition(), "inline")
 
+    def test_build_email_message_places_each_chart_under_matching_symbol_section(self) -> None:
+        """每只股票的图片应出现在对应股票段落下面。"""
+        markdown = "\n".join(
+            [
+                "# 每日美股持仓简报",
+                "",
+                "### SPEX - 换仓候选",
+                "- 一句话: 等价格确认。",
+                "",
+                "### NVDA - 继续持有",
+                "- 一句话: 按风险位盯。",
+            ]
+        )
+        message = build_email_message(
+            markdown,
+            subject="Stock-EGON 日报",
+            sender="bot@example.com",
+            recipients=["user@example.com"],
+            attachments=[
+                {"filename": "SPEX-price-volume.png", "content_type": "image/png", "data": b"\x89PNG\r\n\x1a\nspex"},
+                {"filename": "NVDA-price-volume.png", "content_type": "image/png", "data": b"\x89PNG\r\n\x1a\nnvda"},
+            ],
+        )
+
+        html = message.get_body(preferencelist=("html",)).get_content()
+        spex_heading = html.index("SPEX - 换仓候选")
+        spex_image = html.index("SPEX-price-volume.png")
+        nvda_heading = html.index("NVDA - 继续持有")
+        nvda_image = html.index("NVDA-price-volume.png")
+        self.assertLess(spex_heading, spex_image)
+        self.assertLess(spex_image, nvda_heading)
+        self.assertLess(nvda_heading, nvda_image)
+
     def test_send_email_markdown_skips_when_email_missing(self) -> None:
         """未配置邮件参数时明确跳过，不把报告任务打失败。"""
         result = send_email_markdown("# report", smtp_host=None, sender=None, recipients=None, smtp_factory=FakeSMTP)
