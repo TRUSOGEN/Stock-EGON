@@ -76,6 +76,20 @@ class TestConfigWizard(unittest.TestCase):
         self.assertIn("actions/deploy-pages@v4", content)
         self.assertIn("actions/upload-pages-artifact@v3", content)
 
+    def test_config_wizard_persists_last_form_values_locally(self) -> None:
+        """配置向导应在浏览器本地记住上一次填写的内容。"""
+        html = (PROJECT_ROOT / "docs" / "config-wizard.html").read_text(encoding="utf-8")
+
+        for expected in (
+            "localStorage",
+            "stock-egon-config-wizard-v1",
+            "saveDraft",
+            "loadDraft",
+            "clearSavedDraft",
+            "清空本机记忆",
+        ):
+            self.assertIn(expected, html)
+
 
 if __name__ == "__main__":
     unittest.main()

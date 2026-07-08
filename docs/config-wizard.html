@@ -299,6 +299,9 @@
             打开终端粘贴执行，然后去 GitHub 手动运行 workflow。
           </div>
         </div>
+        <div class="row-actions">
+          <button type="button" id="clearSavedDraft">清空本机记忆</button>
+        </div>
       </section>
 
       <div class="layout">
@@ -480,6 +483,7 @@
 
     <script>
       const repo = "TRUSOGEN/Stock-EGON";
+      const storageKey = "stock-egon-config-wizard-v1";
       const rows = document.getElementById("portfolioRows");
       const errorBox = document.getElementById("errorBox");
 
@@ -530,6 +534,105 @@
           risk_profile: document.getElementById("riskProfile").value,
           holdings,
         };
+      }
+
+      function collectDraft() {
+        return {
+          cash: document.getElementById("cash").value,
+          riskProfile: document.getElementById("riskProfile").value,
+          emailAddress: document.getElementById("emailAddress").value,
+          emailAuthCode: document.getElementById("emailAuthCode").value,
+          emailIncludeCharts: document.getElementById("emailIncludeCharts").value,
+          emailTo: document.getElementById("emailTo").value,
+          emailSmtpHost: document.getElementById("emailSmtpHost").value,
+          emailSmtpPort: document.getElementById("emailSmtpPort").value,
+          emailUsername: document.getElementById("emailUsername").value,
+          emailPassword: document.getElementById("emailPassword").value,
+          emailFrom: document.getElementById("emailFrom").value,
+          arkApiKey: document.getElementById("arkApiKey").value,
+          arkModel: document.getElementById("arkModel").value,
+          deepseekApiKey: document.getElementById("deepseekApiKey").value,
+          llmApiKey: document.getElementById("llmApiKey").value,
+          llmBaseUrl: document.getElementById("llmBaseUrl").value,
+          llmModel: document.getElementById("llmModel").value,
+          braveKey: document.getElementById("braveKey").value,
+          tavilyKey: document.getElementById("tavilyKey").value,
+          serpapiKey: document.getElementById("serpapiKey").value,
+          alphaVantageKey: document.getElementById("alphaVantageKey").value,
+          newsProviderOrder: document.getElementById("newsProviderOrder").value,
+          holdings: Array.from(rows.querySelectorAll("tr")).map((tr) => {
+            const item = {};
+            tr.querySelectorAll("[data-field]").forEach((input) => {
+              item[input.dataset.field] = input.value;
+            });
+            return item;
+          }),
+        };
+      }
+
+      function saveDraft() {
+        try {
+          localStorage.setItem(storageKey, JSON.stringify(collectDraft()));
+        } catch (error) {
+          console.warn("saveDraft failed", error);
+        }
+      }
+
+      function loadDraft() {
+        try {
+          const raw = localStorage.getItem(storageKey);
+          if (!raw) return false;
+          const draft = JSON.parse(raw);
+          if (!draft || typeof draft !== "object") return false;
+          rows.innerHTML = "";
+          const holdings = Array.isArray(draft.holdings) ? draft.holdings : [];
+          holdings.forEach((holding) => addRow(holding));
+          if (!holdings.length) {
+            addDefaultRows();
+          }
+          applyDraftValue("cash", draft.cash);
+          applyDraftValue("riskProfile", draft.riskProfile);
+          applyDraftValue("emailAddress", draft.emailAddress);
+          applyDraftValue("emailAuthCode", draft.emailAuthCode);
+          applyDraftValue("emailIncludeCharts", draft.emailIncludeCharts);
+          applyDraftValue("emailTo", draft.emailTo);
+          applyDraftValue("emailSmtpHost", draft.emailSmtpHost);
+          applyDraftValue("emailSmtpPort", draft.emailSmtpPort);
+          applyDraftValue("emailUsername", draft.emailUsername);
+          applyDraftValue("emailPassword", draft.emailPassword);
+          applyDraftValue("emailFrom", draft.emailFrom);
+          applyDraftValue("arkApiKey", draft.arkApiKey);
+          applyDraftValue("arkModel", draft.arkModel);
+          applyDraftValue("deepseekApiKey", draft.deepseekApiKey);
+          applyDraftValue("llmApiKey", draft.llmApiKey);
+          applyDraftValue("llmBaseUrl", draft.llmBaseUrl);
+          applyDraftValue("llmModel", draft.llmModel);
+          applyDraftValue("braveKey", draft.braveKey);
+          applyDraftValue("tavilyKey", draft.tavilyKey);
+          applyDraftValue("serpapiKey", draft.serpapiKey);
+          applyDraftValue("alphaVantageKey", draft.alphaVantageKey);
+          applyDraftValue("newsProviderOrder", draft.newsProviderOrder);
+          return true;
+        } catch (error) {
+          console.warn("loadDraft failed", error);
+          return false;
+        }
+      }
+
+      function applyDraftValue(id, value) {
+        if (value === undefined || value === null) return;
+        const element = document.getElementById(id);
+        if (element) {
+          element.value = String(value);
+        }
+      }
+
+      function clearSavedDraft() {
+        try {
+          localStorage.removeItem(storageKey);
+        } catch (error) {
+          console.warn("clearSavedDraft failed", error);
+        }
       }
 
       function shellQuote(value) {
@@ -596,23 +699,61 @@
         }
       }
 
-      document.getElementById("wizardForm").addEventListener("input", refresh);
+      function addDefaultRows() {
+        addRow({ symbol: "AAPL", quantity: 3 });
+        addRow({ symbol: "MSFT", quantity: 2 });
+      }
+
+      document.getElementById("wizardForm").addEventListener("input", () => {
+        saveDraft();
+        refresh();
+      });
       document.getElementById("addHolding").addEventListener("click", () => {
         addRow();
+        saveDraft();
         refresh();
       });
       document.getElementById("loadExample").addEventListener("click", () => {
         rows.innerHTML = "";
-        addRow({ symbol: "AAPL", quantity: 3 });
-        addRow({ symbol: "MSFT", quantity: 2 });
+        addDefaultRows();
         document.getElementById("cash").value = "10000";
         document.getElementById("riskProfile").value = "balanced";
         document.getElementById("emailIncludeCharts").value = "true";
+        saveDraft();
+        refresh();
+      });
+      document.getElementById("clearSavedDraft").addEventListener("click", () => {
+        clearSavedDraft();
+        rows.innerHTML = "";
+        addDefaultRows();
+        document.getElementById("cash").value = "0";
+        document.getElementById("riskProfile").value = "aggressive";
+        document.getElementById("emailAddress").value = "";
+        document.getElementById("emailAuthCode").value = "";
+        document.getElementById("emailIncludeCharts").value = "true";
+        document.getElementById("emailTo").value = "";
+        document.getElementById("emailSmtpHost").value = "";
+        document.getElementById("emailSmtpPort").value = "587";
+        document.getElementById("emailUsername").value = "";
+        document.getElementById("emailPassword").value = "";
+        document.getElementById("emailFrom").value = "";
+        document.getElementById("arkApiKey").value = "";
+        document.getElementById("arkModel").value = "";
+        document.getElementById("deepseekApiKey").value = "";
+        document.getElementById("llmApiKey").value = "";
+        document.getElementById("llmBaseUrl").value = "";
+        document.getElementById("llmModel").value = "";
+        document.getElementById("braveKey").value = "";
+        document.getElementById("tavilyKey").value = "";
+        document.getElementById("serpapiKey").value = "";
+        document.getElementById("alphaVantageKey").value = "";
+        document.getElementById("newsProviderOrder").value = "brave,tavily,serpapi,alphavantage";
         refresh();
       });
       rows.addEventListener("click", (event) => {
         if (event.target.matches("[data-remove]")) {
           event.target.closest("tr").remove();
+          saveDraft();
           refresh();
         }
       });
@@ -627,8 +768,9 @@
         });
       });
 
-      addRow({ symbol: "AAPL", quantity: 3 });
-      addRow({ symbol: "MSFT", quantity: 2 });
+      if (!loadDraft()) {
+        addDefaultRows();
+      }
       refresh();
     </script>
   </body>
