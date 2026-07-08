@@ -12,7 +12,7 @@ Stock-EGON 是一个股票研究辅助项目，当前包含两部分：基于 AK
 
 如果你不想手工写 `PORTFOLIO_JSON`，可以把 [docs/portfolio-input-template.md](docs/portfolio-input-template.md) 里的提示词发给 AI，再附上持仓截图或表格，让 AI 只负责整理出可复制的 JSON。
 
-如果你想一次性填持仓、邮箱、LLM 投研助理和新闻源，可以打开 [docs/config-wizard.html](docs/config-wizard.html)。这个页面会在浏览器本地生成一段一键终端脚本，右侧只保留最重要的那一段命令。生成后的脚本可以直接复制到本机终端执行，macOS 默认 zsh 或 bash 都可以；如果终端提示没有登录 GitHub CLI，先运行 `gh auth login`。向导里也支持填写成本价，并可默认开启“每只股票附带周/月/年三联 K 线图”的邮件附件。
+如果你想一次性填持仓、邮箱、LLM 投研助理和新闻源，可以直接打开网页版配置向导 [https://trusogen.github.io/Stock-EGON/config-wizard.html](https://trusogen.github.io/Stock-EGON/config-wizard.html)。如果你在本地仓库里操作，也可以继续打开 [docs/config-wizard.html](docs/config-wizard.html)。这个页面会在浏览器本地生成一段一键终端脚本，右侧只保留最重要的那一段命令。生成后的脚本可以直接复制到本机终端执行，macOS 默认 zsh 或 bash 都可以；如果终端提示没有登录 GitHub CLI，先运行 `gh auth login`。向导里也支持填写成本价，并可默认开启“每只股票附带周/月/年三联 K 线图”的邮件附件。
 
 ## AI API 和复用边界
 

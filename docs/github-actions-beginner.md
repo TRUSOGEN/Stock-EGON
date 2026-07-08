@@ -21,7 +21,9 @@ flowchart LR
 
 ## 最省事的配置方法
 
-最快的方法不是手填很多个 Secret，而是先打开 [config-wizard.html](config-wizard.html)。
+最快的方法不是手填很多个 Secret，而是先打开网页版配置向导 [https://trusogen.github.io/Stock-EGON/config-wizard.html](https://trusogen.github.io/Stock-EGON/config-wizard.html)。
+
+如果你是在本地仓库里操作，也可以直接打开 [config-wizard.html](config-wizard.html)。
 
 在这个页面里：
 

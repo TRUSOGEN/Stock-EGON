@@ -21,7 +21,7 @@
 
 如果不想手工写 JSON，可以复制 [portfolio-input-template.md](portfolio-input-template.md) 里的提示词给 AI，再附上持仓截图或表格，让 AI 输出完整 `PORTFOLIO_JSON`。AI 只做数据整理，不应补充投资判断，也不应猜测看不清的数量。
 
-如果想一次性配置持仓、邮件、LLM 投研助理和新闻源，可以打开 [config-wizard.html](config-wizard.html)。它会在浏览器本地生成一段一键终端脚本，右侧只保留最关键的那一段命令。复制生成的一键脚本后，粘贴到本机终端执行即可，脚本会通过 `gh secret set --repo TRUSOGEN/Stock-EGON -f -` 批量写入 GitHub Secrets。macOS 默认 zsh 或 bash 都可以；如果终端提示 GitHub CLI 未登录，先运行 `gh auth login`。
+如果想一次性配置持仓、邮件、LLM 投研助理和新闻源，可以直接打开网页版配置向导 [https://trusogen.github.io/Stock-EGON/config-wizard.html](https://trusogen.github.io/Stock-EGON/config-wizard.html)。如果你是在本地仓库里阅读文档，也可以继续打开 [config-wizard.html](config-wizard.html)。它会在浏览器本地生成一段一键终端脚本，右侧只保留最关键的那一段命令。复制生成的一键脚本后，粘贴到本机终端执行即可，脚本会通过 `gh secret set --repo TRUSOGEN/Stock-EGON -f -` 批量写入 GitHub Secrets。macOS 默认 zsh 或 bash 都可以；如果终端提示 GitHub CLI 未登录，先运行 `gh auth login`。
 
 ```json
 {

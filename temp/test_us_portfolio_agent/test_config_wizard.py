@@ -57,6 +57,25 @@ class TestConfigWizard(unittest.TestCase):
         ):
             self.assertIn(expected, html)
 
+    def test_docs_link_to_hosted_config_wizard_page(self) -> None:
+        """README 和部署文档应当给出可直接打开的网页入口。"""
+        readme = (PROJECT_ROOT / "README.md").read_text(encoding="utf-8")
+        deployment = (PROJECT_ROOT / "docs" / "us-stock-agent-deployment.md").read_text(encoding="utf-8")
+        beginner = (PROJECT_ROOT / "docs" / "github-actions-beginner.md").read_text(encoding="utf-8")
+
+        expected = "https://trusogen.github.io/Stock-EGON/config-wizard.html"
+        self.assertIn(expected, readme)
+        self.assertIn(expected, deployment)
+        self.assertIn(expected, beginner)
+
+    def test_repo_contains_github_pages_workflow_for_docs(self) -> None:
+        """仓库应包含把 docs 发布为网页的 GitHub Pages workflow。"""
+        workflow = PROJECT_ROOT / ".github" / "workflows" / "deploy-docs-pages.yml"
+        self.assertTrue(workflow.exists())
+        content = workflow.read_text(encoding="utf-8")
+        self.assertIn("actions/deploy-pages@v4", content)
+        self.assertIn("actions/upload-pages-artifact@v3", content)
+
 
 if __name__ == "__main__":
     unittest.main()
