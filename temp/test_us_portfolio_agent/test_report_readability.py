@@ -91,15 +91,15 @@ class TestReportReadability(unittest.TestCase):
             valuation_score=50,
             risk_score=58,
             concentration_score=47,
-            evidence=["中期趋势偏弱，收盘价低于 20 日均线", "短线动量仍属健康"],
+            evidence=["季度趋势偏弱，收盘价低于 20 日均线", "月度动量仍属健康"],
         )
         action = ActionRecommendation(
             symbol="NVDA",
             action="watch",
             label="重点观察",
-            rationale=["中期趋势偏弱，收盘价低于 20 日均线", "短线动量仍属健康"],
+            rationale=["季度趋势偏弱，收盘价低于 20 日均线", "月度动量仍属健康"],
             risk_controls=[
-                "等待趋势或新闻催化进一步确认",
+                "等待月度趋势或新闻催化进一步确认",
                 "观察进入区间: 193.60-198.90",
                 "风险位: 186.00",
                 "目标观察位: 213.99",
@@ -144,14 +144,15 @@ class TestReportReadability(unittest.TestCase):
         action = ActionRecommendation(
             symbol="NVDA",
             action="add_candidate",
-            label="换仓候选",
+            label="增持候选",
             rationale=["趋势向上"],
             risk_controls=["等待价格确认"],
         )
 
         report = render_daily_report(view=view, scored_actions=[(score, action)])
 
-        self.assertIn("换仓候选", report)
+        self.assertIn("增配复核候选", report)
+        self.assertIn("增持候选", report)
         self.assertIn("减仓或卖出释放的资金", report)
         self.assertNotIn("可以考虑加一点", report)
 

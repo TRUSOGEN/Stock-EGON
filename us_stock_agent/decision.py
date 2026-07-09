@@ -1,7 +1,7 @@
 """持仓评分和动作分层。
 
-本模块把趋势、动量、组合权重、新闻风险和持仓盈亏合成为研究动作。分数用于排序和复盘，
-不等同于无条件交易指令。
+本模块把中期趋势、较长周期动量、组合权重、新闻风险和持仓盈亏合成为研究动作。分数用于
+1 个月、1 个季度和 1 年视角的排序和复盘，不等同于无条件交易指令。
 """
 
 from __future__ import annotations
@@ -32,23 +32,29 @@ def score_position(
 
     if latest["ma20"] > latest["ma60"]:
         trend_score += 18
-        evidence.append("中期趋势向上")
+        evidence.append("季度趋势向上")
     else:
         trend_score -= 18
-        evidence.append("中期趋势偏弱")
+        evidence.append("季度趋势偏弱")
+    if latest["ma60"] > latest["ma120"]:
+        trend_score += 8
+        evidence.append("半年趋势保持向上")
+    elif latest["ma60"] < latest["ma120"]:
+        trend_score -= 8
+        evidence.append("半年趋势仍需修复")
     if latest["close"] > latest["ma20"]:
-        trend_score += 10
+        trend_score += 6
         evidence.append("收盘价位于 MA20 上方")
     else:
-        trend_score -= 10
+        trend_score -= 6
         evidence.append("收盘价跌破 MA20")
 
     previous = indicators.iloc[-2] if len(indicators) >= 2 else latest
     if latest["ma5"] >= latest["ma10"] >= latest["ma20"] and latest["ma20"] >= previous["ma20"]:
-        trend_score += 10
-        evidence.append("MA5/MA10/MA20 多头排列")
+        trend_score += 5
+        evidence.append("短中期均线配合季度趋势")
     elif latest["ma5"] < latest["ma10"] < latest["ma20"]:
-        trend_score -= 8
+        trend_score -= 5
         evidence.append("短中期均线空头排列")
 
     ma20_bias = (latest["close"] / latest["ma20"] - 1) if latest["ma20"] else 0.0
@@ -59,21 +65,21 @@ def score_position(
         momentum_score -= 8
         evidence.append("价格距离 MA20 过远，追高风险上升")
 
-    if 45 <= latest["rsi6"] <= 72:
-        momentum_score += 16
-        evidence.append("短线动量健康")
-    elif latest["rsi6"] > 82:
-        momentum_score -= 14
-        evidence.append("短线过热")
-    elif latest["rsi6"] < 35:
-        momentum_score -= 12
-        evidence.append("短线动量偏弱")
-    if latest["volume_ratio"] > 2.0 and latest["close"] >= indicators["close"].iloc[-2]:
+    if 42 <= latest["rsi24"] <= 68:
         momentum_score += 12
-        evidence.append("放量突破或反弹确认")
-    elif latest["volume_ratio"] > 1.2 and latest["close"] >= indicators["close"].iloc[-2]:
-        momentum_score += 8
-        evidence.append("上涨伴随放量")
+        evidence.append("月度动量健康")
+    elif latest["rsi24"] > 78:
+        momentum_score -= 10
+        evidence.append("月度动量过热")
+    elif latest["rsi24"] < 38:
+        momentum_score -= 10
+        evidence.append("月度动量偏弱")
+    if latest["volume_ratio_20"] > 1.6 and latest["close"] >= indicators["close"].iloc[-2]:
+        momentum_score += 9
+        evidence.append("20 日量能支持趋势延续")
+    elif latest["volume_ratio_20"] > 1.15 and latest["close"] >= indicators["close"].iloc[-2]:
+        momentum_score += 5
+        evidence.append("上涨伴随温和放量")
 
     if position.unrealized_pnl_pct is not None:
         if position.unrealized_pnl_pct < -0.12:
@@ -98,10 +104,10 @@ def score_position(
 
     total = (
         _clip(trend_score) * 0.34
-        + _clip(momentum_score) * 0.22
+        + _clip(momentum_score) * 0.14
         + _clip(valuation_score) * 0.08
-        + _clip(risk_score) * 0.2
-        + _clip(concentration_score) * 0.16
+        + _clip(risk_score) * 0.24
+        + _clip(concentration_score) * 0.2
     )
     return PositionScore(
         symbol=position.symbol,
@@ -123,7 +129,7 @@ def classify_action(score: PositionScore) -> ActionRecommendation:
             action="add_candidate",
             label="增持候选",
             rationale=score.evidence[:4],
-            risk_controls=["等待盘前/盘中确认，不追高放量长上影", "单票权重不超过预设上限"],
+            risk_controls=["等待月度趋势和风险位确认，不因单日波动追价", "单票权重不超过预设上限"],
         )
     if score.total_score <= 45 or score.risk_score <= 45 or score.concentration_score <= 45:
         return ActionRecommendation(
@@ -139,14 +145,14 @@ def classify_action(score: PositionScore) -> ActionRecommendation:
             action="watch",
             label="重点观察",
             rationale=score.evidence[:4],
-            risk_controls=["等待趋势或新闻催化进一步确认", "更新止损/止盈观察位"],
+            risk_controls=["等待月度趋势或事件风险进一步确认", "更新风险位、目标观察位和失效条件"],
         )
     return ActionRecommendation(
         symbol=score.symbol,
         action="hold",
         label="继续持有",
         rationale=score.evidence[:4],
-        risk_controls=["维持跟踪，若跌破 MA20 或出现重大负面新闻则复核"],
+        risk_controls=["维持月度复盘，若跌破 MA60 或出现重大负面新闻则复核"],
     )
 
 

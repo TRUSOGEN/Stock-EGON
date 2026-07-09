@@ -101,10 +101,32 @@ class TestConfigWizard(unittest.TestCase):
             "volume_breakout",
             "event_driven",
             "growth_quality",
+            "CMT Association",
+            "SEC Investor.gov",
+            "FINRA Stocks",
+            "Kenneth R. French Data Library",
+            "backtest overfitting",
             "不是交易指令",
             "未回测验证前",
         ):
             self.assertIn(expected, markdown)
+
+    def test_readme_explains_us_report_methodology_boundary(self) -> None:
+        """README 应解释美股报告动作标签、guardrail 和未验证边界。"""
+        readme = (PROJECT_ROOT / "README.md").read_text(encoding="utf-8")
+
+        for expected in (
+            "怎么读美股报告",
+            "1 个月、1 个季度和 1 年视角",
+            "动作标签采用候选制",
+            "评分来自五类证据",
+            "RSI24",
+            "growth_quality",
+            "必须通过 guardrail",
+            "只能算可解释复盘规则",
+            "docs/methodology.md",
+        ):
+            self.assertIn(expected, readme)
 
     def test_config_wizard_persists_last_form_values_locally(self) -> None:
         """配置向导应在浏览器本地记住上一次填写的内容。"""

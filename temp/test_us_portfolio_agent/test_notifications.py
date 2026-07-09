@@ -153,7 +153,7 @@ class TestEmailNotifications(unittest.TestCase):
             [
                 "# 每日美股持仓简报",
                 "",
-                "### SPEX — 换仓候选",
+                "### SPEX — 增持候选",
                 "SPEX 目前占组合权重 12.30%，等待价格确认。",
                 "",
                 "### NVDA — 继续持有",
@@ -172,7 +172,7 @@ class TestEmailNotifications(unittest.TestCase):
         )
 
         html = message.get_body(preferencelist=("html",)).get_content()
-        spex_heading = html.index("SPEX — 换仓候选")
+        spex_heading = html.index("SPEX — 增持候选")
         spex_image = html.index("SPEX-price-volume.png")
         nvda_heading = html.index("NVDA — 继续持有")
         nvda_image = html.index("NVDA-price-volume.png")

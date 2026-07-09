@@ -125,8 +125,11 @@ class TestLLMEnhancer(unittest.TestCase):
         payload = calls[0][1]["json"]
         self.assertEqual(payload["model"], "provider/model")
         self.assertIn("原始报告", payload["messages"][1]["content"])
+        self.assertIn("美股长期持仓复盘助理", payload["messages"][1]["content"])
+        self.assertIn("1 个月、1 个季度和 1 年视角", payload["messages"][1]["content"])
         self.assertIn("每只股票使用 `### TICKER — 动作标签`", payload["messages"][1]["content"])
         self.assertIn("标题下面只写一个自然段", payload["messages"][1]["content"])
+        self.assertIn("不要把规则报告改写成日内交易", payload["messages"][1]["content"])
 
 
 if __name__ == "__main__":

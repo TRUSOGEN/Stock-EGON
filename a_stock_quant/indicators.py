@@ -41,7 +41,7 @@ def compute_indicators(frame: pd.DataFrame) -> pd.DataFrame:
     low = result["low"].astype(float)
     volume = result["volume"].astype(float)
 
-    for window in (5, 10, 20, 60):
+    for window in (5, 10, 20, 60, 120, 200):
         result[f"ma{window}"] = close.rolling(window=window, min_periods=1).mean()
 
     ema12 = close.ewm(span=12, adjust=False).mean()
@@ -68,6 +68,9 @@ def compute_indicators(frame: pd.DataFrame) -> pd.DataFrame:
     avg_volume = volume.rolling(window=5, min_periods=1).mean()
     result["volume_ratio"] = (volume / avg_volume.replace(0, np.nan)).replace([np.inf, -np.inf], np.nan)
     result["volume_ratio"] = result["volume_ratio"].fillna(0)
+    avg_volume_20 = volume.rolling(window=20, min_periods=1).mean()
+    result["volume_ratio_20"] = (volume / avg_volume_20.replace(0, np.nan)).replace([np.inf, -np.inf], np.nan)
+    result["volume_ratio_20"] = result["volume_ratio_20"].fillna(0)
     return result
 
 

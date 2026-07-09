@@ -22,6 +22,16 @@ Stock-EGON 是一个股票研究辅助项目，当前包含两部分：基于 AK
 
 GitHub Actions 不能复用你本机的 Codex 登录态。需要 LLM 增强时，火山方舟应配置 `ARK_API_KEY` 和 `ARK_MODEL`，DeepSeek 官方接口应配置 `DEEPSEEK_API_KEY`，其他 OpenAI-compatible 服务可配置 `LLM_API_KEY`、`LLM_BASE_URL`、`LLM_MODEL`。也兼容 `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`OPENAI_MODEL` 这类常见命名。详细说明见 [docs/llm-config-guide.md](docs/llm-config-guide.md)。
 
+## 怎么读美股报告
+
+美股日报和周报服务 1 个月、1 个季度和 1 年视角的持仓复盘。动作标签采用候选制，`add_candidate` 表示“如果你本来计划再平衡或补仓，这只股票优先进入人工复核列表”；`trim_candidate` 表示“集中度、风险或技术状态要求优先复核是否降低敞口”；`watch` 表示“有信息价值但触发条件不足”；`hold` 表示“当前没有足够证据要求改变持仓”。这些标签只服务排序、解释和复盘，不是自动买卖指令。
+
+评分来自五类证据：趋势、动量、估值占位、风险和组合集中度。趋势以 MA20/MA60、MA60/MA120、收盘价相对 MA20、短中期均线是否配合季度趋势为主；动量以 RSI24 和 20 日量能为主，避免被单日噪音牵着走；风险看持仓盈亏、新闻风险和事件风险；组合集中度看单票权重、目标权重和账户风险偏好。估值占位暂时不生成真正的 valuation alpha，`growth_quality` 需要稳定财务字段后才会进入正式评分。
+
+`add_candidate` 必须通过 guardrail。行情质量不足、价格明显远离可解释进入区间、缺少风险位、缺少失效条件、风险分不足或集中度风险过高时，系统会把增持候选降级为 `watch`，并在报告里说明原因。这个设计优先保证正确失败，避免把数据缺口或单日强势包装成确定结论。
+
+当前规则未回测验证前，只能算可解释复盘规则，不能算已验证交易策略。更严谨的下一步是保存每次日报建议、计算 5/20/60 个交易日相对 SPY 或 QQQ 的表现、记录最大回撤和风险位触发情况，再校准 MA 乖离、RSI、量能和集中度阈值。完整方法论、权威参考来源和后续验证路线见 [docs/methodology.md](docs/methodology.md)。
+
 ## 暂停服务
 
 最快暂停方式是在 GitHub 仓库 `Actions` 页面点进 `US Stock Portfolio Report`，右上角选择 `Disable workflow`。这样定时任务和手动任务都会停。

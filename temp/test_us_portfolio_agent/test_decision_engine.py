@@ -107,7 +107,7 @@ class DecisionEngineTests(unittest.TestCase):
         self.assertEqual(classify_action(score).action, "trim_candidate")
 
     def test_score_position_absorbs_strategy_skill_signals(self) -> None:
-        """评分应吸收多头趋势、低乖离和量价确认等 strategy skill 信号。"""
+        """评分应吸收季度趋势、低乖离和 20 日量能等长期持仓信号。"""
         position = build_portfolio_view(
             Portfolio(currency="USD", cash=2000, holdings=[Holding(symbol="NVDA", quantity=1, cost_basis=100)]),
             {"NVDA": MarketSnapshot(symbol="NVDA", price=118, previous_close=117)},
@@ -123,9 +123,10 @@ class DecisionEngineTests(unittest.TestCase):
         )
 
         evidence = "；".join(score.evidence)
-        self.assertIn("MA5/MA10/MA20 多头排列", evidence)
+        self.assertIn("季度趋势向上", evidence)
+        self.assertIn("短中期均线配合季度趋势", evidence)
         self.assertIn("均线乖离低于 5%", evidence)
-        self.assertIn("放量突破或反弹确认", evidence)
+        self.assertIn("20 日量能支持趋势延续", evidence)
 
     def test_score_position_treats_negative_events_as_risk_veto(self) -> None:
         """事件驱动信号里，负面事件应优先进入风险扣分和解释。"""
@@ -170,11 +171,11 @@ class DecisionEngineTests(unittest.TestCase):
             weekly_notes=["组合科技股暴露较高"],
         )
 
-        self.assertIn("每日美股持仓简报", daily)
+        self.assertIn("长期美股持仓日报", daily)
         self.assertIn("TSLA", daily)
         self.assertIn("数据限制", daily)
         self.assertIn("每周持仓复盘", weekly)
-        self.assertIn("下周观察清单", weekly)
+        self.assertIn("中长期观察清单", weekly)
 
 
 if __name__ == "__main__":

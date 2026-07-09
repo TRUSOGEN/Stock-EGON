@@ -70,14 +70,28 @@ class CoreBehaviorTests(unittest.TestCase):
         latest = indicators.iloc[-1]
 
         self.assertTrue(
-            {"ma5", "ma10", "ma20", "macd", "rsi6", "boll_mid", "volume_ratio"}.issubset(
-                indicators.columns
-            )
+            {
+                "ma5",
+                "ma10",
+                "ma20",
+                "ma60",
+                "ma120",
+                "ma200",
+                "macd",
+                "rsi6",
+                "rsi24",
+                "boll_mid",
+                "volume_ratio",
+                "volume_ratio_20",
+            }.issubset(indicators.columns)
         )
         self.assertGreater(latest["ma5"], latest["ma20"])
         self.assertGreaterEqual(latest["rsi6"], 0)
         self.assertLessEqual(latest["rsi6"], 100)
+        self.assertGreaterEqual(latest["rsi24"], 0)
+        self.assertLessEqual(latest["rsi24"], 100)
         self.assertGreater(latest["volume_ratio"], 0)
+        self.assertGreater(latest["volume_ratio_20"], 0)
 
     def test_analyze_stock_returns_structured_diagnosis_without_buy_sell_orders(self) -> None:
         """个股诊断应返回技术信号和观察点，不输出买卖指令。"""

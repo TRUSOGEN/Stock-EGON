@@ -18,7 +18,7 @@ def render_daily_report(
     """渲染每日美股持仓简报。"""
     current_date = report_date or date.today()
     lines = [
-        f"# 每日美股持仓简报 | {current_date.isoformat()}",
+        f"# 长期美股持仓日报 | {current_date.isoformat()}",
         "",
         f"组合净值: {view.net_liquidation:,.2f} {view.currency} | 现金: {view.cash:,.2f} | 现金权重: {view.cash_weight:.2%}",
         "",
@@ -27,11 +27,12 @@ def render_daily_report(
     buckets = _bucket_actions(scored_actions)
     lines.extend(
         [
-            f"- 换仓候选: {_symbols_or_none(buckets['add_candidate'])}",
-            f"- 需要减仓或复核: {_symbols_or_none(buckets['trim_candidate'])}",
-            f"- 先拿着: {_symbols_or_none(buckets['hold'])}",
-            f"- 先别动，只观察: {_symbols_or_none(buckets['watch'])}",
-            "- 换仓原则: 买入候选默认用减仓或卖出释放的资金承接，不按新增现金处理。",
+            f"- 增配复核候选: {_symbols_or_none(buckets['add_candidate'])}",
+            f"- 降权复核候选: {_symbols_or_none(buckets['trim_candidate'])}",
+            f"- 继续持有: {_symbols_or_none(buckets['hold'])}",
+            f"- 重点观察: {_symbols_or_none(buckets['watch'])}",
+            "- 周期口径: 动作标签用于 1 个月、1 个季度和 1 年视角的持仓复盘，不是日内交易信号。",
+            "- 再平衡原则: 增配候选默认用降权或卖出释放的资金承接，不按新增现金处理。",
         ]
     )
     if market_notes:
@@ -65,14 +66,15 @@ def render_weekly_review(
         "",
         f"组合净值: {view.net_liquidation:,.2f} {view.currency} | 投入市值: {view.invested_value:,.2f} | 现金权重: {view.cash_weight:.2%}",
         "",
-        "## 本周复盘重点",
+        "## 中长期复盘重点",
     ]
-    lines.extend(f"- {note}" for note in (weekly_notes or ["复盘技术趋势、组合集中度和下周事件风险。"]))
-    lines.append("- 换仓原则: 新买入默认来自减仓或卖出释放的资金，不按新增现金处理。")
+    lines.extend(f"- {note}" for note in (weekly_notes or ["复盘月度趋势、季度趋势、组合集中度和未来事件风险。"]))
+    lines.append("- 周期口径: 周报用于更新 1 个月、1 个季度和 1 年视角的持仓计划。")
+    lines.append("- 再平衡原则: 新增仓位默认来自降权或卖出释放的资金，不按新增现金处理。")
     if portfolio_risk:
         lines.extend(_portfolio_risk_section(portfolio_risk))
     lines.append("")
-    lines.append("## 下周观察清单")
+    lines.append("## 中长期观察清单")
     for score, action in sorted(scored_actions, key=lambda item: item[0].total_score):
         lines.append(
             f"- {score.symbol}: {action.label}，评分 {score.total_score:.1f}；风控: {'；'.join(action.risk_controls)}"
@@ -148,12 +150,12 @@ def _signal_narrative(score: PositionScore, action: ActionRecommendation) -> str
 def _action_narrative(action: str, label: str) -> str:
     """解释当前动作标签。"""
     if action == "add_candidate":
-        return f"因此列为{label}，若后续买入，默认用减仓或卖出释放的资金承接。"
+        return f"因此列为{label}，若后续增持，默认用减仓或卖出释放的资金承接，并按月度或季度节奏复核。"
     if action == "trim_candidate":
         return f"因此列为{label}，先复核仓位和风险来源，必要时分批处理。"
     if action == "hold":
-        return f"因此列为{label}，继续按风险位跟踪，不因为一天波动乱动。"
-    return f"当前信息不足以做出明确买卖决策，因此列为{label}，等待趋势或新闻催化进一步明朗。"
+        return f"因此列为{label}，继续按风险位跟踪，不因为单日波动乱动。"
+    return f"当前信息不足以支持调整持仓，因此列为{label}，等待月度趋势或新闻催化进一步明朗。"
 
 
 def _extract_control_levels(risk_controls: list[str]) -> dict[str, str]:

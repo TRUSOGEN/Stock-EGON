@@ -94,15 +94,15 @@ def run_report(
 
 
 def _build_trigger_levels(symbol: str, history) -> TriggerLevels:
-    """根据近期价格生成保守触发条件。"""
-    recent = history.tail(min(20, len(history)))
+    """根据最近 60 个交易日生成偏长期持仓的保守触发条件。"""
+    recent = history.tail(min(60, len(history)))
     current = float(recent["close"].iloc[-1])
     support = float(recent["low"].min())
     resistance = float(recent["high"].max())
     entry_low = min(current, support * 1.02)
     entry_high = current * 1.01
     stop_loss = support * 0.98
-    target_price = max(resistance, current * 1.08)
+    target_price = max(resistance, current * 1.15)
     return TriggerLevels(
         entry_low=entry_low,
         entry_high=entry_high,
