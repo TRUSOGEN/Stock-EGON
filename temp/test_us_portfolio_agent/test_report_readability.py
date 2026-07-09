@@ -162,6 +162,17 @@ class TestReportReadability(unittest.TestCase):
         self.assertIn("REPORT_ENABLED", workflow)
         self.assertIn("vars.REPORT_ENABLED != 'false'", workflow)
 
+    def test_workflow_uses_off_peak_beijing_morning_schedule(self) -> None:
+        """定时任务应避开整点和半点，降低 GitHub Actions 调度拥堵风险。"""
+        workflow = (PROJECT_ROOT / ".github" / "workflows" / "us-stock-report.yml").read_text(encoding="utf-8")
+
+        self.assertIn('cron: "17 0 * * 2-6"', workflow)
+        self.assertIn('cron: "17 1 * * 6"', workflow)
+        self.assertIn("github.event.schedule == '17 0 * * 2-6'", workflow)
+        self.assertIn("github.event.schedule == '17 1 * * 6'", workflow)
+        self.assertNotIn('cron: "30 0 * * 2-6"', workflow)
+        self.assertNotIn('cron: "0 1 * * 6"', workflow)
+
 
 if __name__ == "__main__":
     unittest.main()

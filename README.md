@@ -4,7 +4,7 @@ Stock-EGON 是一个股票研究辅助项目，当前包含两部分：基于 AK
 
 ## 你要做的三件事
 
-第一步，把仓库保留在 GitHub 私有仓库里，然后打开 `Actions` 页面启用 `US Stock Portfolio Report` workflow。这个 workflow 会在北京时间周二到周六 08:30 生成日报，在北京时间周六 09:00 生成周报，也可以手动运行。
+第一步，把仓库保留在 GitHub 私有仓库里，然后打开 `Actions` 页面启用 `US Stock Portfolio Report` workflow。这个 workflow 会在北京时间周二到周六 08:17 左右生成日报，在北京时间周六 09:17 左右生成周报，也可以手动运行。GitHub Actions 的定时任务可能延迟或偶发漏触发，若当天没有收到邮件，可以在 `Actions` 页面手动运行一次 `daily`。
 
 第二步，在 GitHub 仓库的 `Settings` -> `Secrets and variables` -> `Actions` 页面，停留在 `Secrets` 标签页，不要切到 `Variables`。点击 `New repository secret`，`Name` 填 `PORTFOLIO_JSON`，`Secret` 填下面“最小可用配置”里的完整 JSON。真实持仓不要提交到仓库，也不要放到 Variables。
 

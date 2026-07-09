@@ -8,8 +8,8 @@ on:
         required: true
         default: "daily"
   schedule:
-    - cron: "30 0 * * 2-6"
-    - cron: "0 1 * * 6"
+    - cron: "17 0 * * 2-6"
+    - cron: "17 1 * * 6"
 
 concurrency:
   group: us-stock-portfolio-report
@@ -28,7 +28,7 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
       - name: Daily report
-        if: (github.event_name == 'schedule' && github.event.schedule == '30 0 * * 2-6') || (github.event_name == 'workflow_dispatch' && github.event.inputs.report_type == 'daily')
+        if: (github.event_name == 'schedule' && github.event.schedule == '17 0 * * 2-6') || (github.event_name == 'workflow_dispatch' && github.event.inputs.report_type == 'daily')
         env:
           PORTFOLIO_JSON: ${{ secrets.PORTFOLIO_JSON || vars.PORTFOLIO_JSON }}
           ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
@@ -72,7 +72,7 @@ jobs:
           cat reports/us-daily-report.json
           python scripts/send_email_report.py --report-file reports/us-daily-report.json
       - name: Weekly review
-        if: (github.event_name == 'schedule' && github.event.schedule == '0 1 * * 6') || (github.event_name == 'workflow_dispatch' && github.event.inputs.report_type == 'weekly')
+        if: (github.event_name == 'schedule' && github.event.schedule == '17 1 * * 6') || (github.event_name == 'workflow_dispatch' && github.event.inputs.report_type == 'weekly')
         env:
           PORTFOLIO_JSON: ${{ secrets.PORTFOLIO_JSON || vars.PORTFOLIO_JSON }}
           ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
