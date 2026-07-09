@@ -84,6 +84,11 @@ class TestConfigWizard(unittest.TestCase):
         self.assertIn("Stock-EGON 交互图", html)
         self.assertIn("TradingView", html)
         self.assertIn("finance.yahoo.com", html)
+        self.assertIn("grid-template-columns: 1fr", html)
+        self.assertIn("height: clamp(620px, calc(100vh - 178px), 820px)", html)
+        self.assertIn("hide_side_toolbar: true", html)
+        self.assertIn("hide_top_toolbar: window.matchMedia", html)
+        self.assertIn('data-interval="W"', html)
         self.assertNotIn("data/us-stock-charts.json", html)
 
     def test_methodology_doc_records_daily_stock_analysis_and_strategy_skill_sources(self) -> None:
