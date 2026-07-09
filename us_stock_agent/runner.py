@@ -28,7 +28,12 @@ def run_report(
     histories = {symbol: provider.fetch_history(symbol, period="6mo") for symbol in symbols}
     view = build_portfolio_view(portfolio, snapshots)
     portfolio_risk = assess_portfolio_risk(view, risk_profile=portfolio.risk_profile)
-    news = build_news_provider_from_env().fetch_news(symbols)
+    news_warnings: list[str] = []
+    try:
+        news = build_news_provider_from_env().fetch_news(symbols)
+    except Exception as exc:  # noqa: BLE001
+        news = {symbol: [] for symbol in symbols}
+        news_warnings.append(f"新闻源调用失败，已跳过新闻增强: {exc}")
     scored_actions = []
     for position in view.positions:
         risk_flags = [item.risk_flag for item in news[position.symbol] if item.risk_flag]
@@ -56,6 +61,7 @@ def run_report(
         scored_actions.append((score, action))
 
     market_notes = [news_provider_status()]
+    market_notes.extend(news_warnings)
     market_notes.extend(_format_news_notes(news))
     if report_type == "weekly":
         report = render_weekly_review(
@@ -80,7 +86,10 @@ def run_report(
         data={"report_markdown": report, "symbols": symbols},
         data_time=None,
         source_api="yfinance + configured_news_provider",
-        warnings=["免费行情源可能延迟或失败；报告仅供研究复盘，不构成投资建议。"],
+        warnings=[
+            "免费行情源可能延迟或失败；报告仅供研究复盘，不构成投资建议。",
+            *news_warnings,
+        ],
     )
 
 
