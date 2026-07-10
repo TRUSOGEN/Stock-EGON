@@ -9,11 +9,19 @@ on:
         default: "daily"
   schedule:
     - cron: "17 0 * * 2-6"
+    - cron: "37 0 * * 2-6"
+    - cron: "57 0 * * 2-6"
     - cron: "17 1 * * 6"
+    - cron: "37 1 * * 6"
+    - cron: "57 1 * * 6"
 
 concurrency:
   group: us-stock-portfolio-report
   cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
 
 jobs:
   report:
@@ -25,10 +33,18 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Scheduled duplicate guard
+        id: schedule_guard
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_EVENT_SCHEDULE: ${{ github.event.schedule }}
+          WORKFLOW_REPORT_TYPE: ${{ github.event.inputs.report_type || 'daily' }}
+        run: python scripts/schedule_guard.py
       - name: Install dependencies
+        if: steps.schedule_guard.outputs.skip != 'true'
         run: pip install -r requirements.txt
       - name: Daily report
-        if: (github.event_name == 'schedule' && github.event.schedule == '17 0 * * 2-6') || (github.event_name == 'workflow_dispatch' && github.event.inputs.report_type == 'daily')
+        if: steps.schedule_guard.outputs.skip != 'true' && steps.schedule_guard.outputs.report_type == 'daily'
         env:
           PORTFOLIO_JSON: ${{ secrets.PORTFOLIO_JSON || vars.PORTFOLIO_JSON }}
           ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
@@ -72,7 +88,7 @@ jobs:
           cat reports/us-daily-report.json
           python scripts/send_email_report.py --report-file reports/us-daily-report.json
       - name: Weekly review
-        if: (github.event_name == 'schedule' && github.event.schedule == '17 1 * * 6') || (github.event_name == 'workflow_dispatch' && github.event.inputs.report_type == 'weekly')
+        if: steps.schedule_guard.outputs.skip != 'true' && steps.schedule_guard.outputs.report_type == 'weekly'
         env:
           PORTFOLIO_JSON: ${{ secrets.PORTFOLIO_JSON || vars.PORTFOLIO_JSON }}
           ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
@@ -115,6 +131,18 @@ jobs:
           python scripts/us_weekly_review.py > reports/us-weekly-review.json
           cat reports/us-weekly-review.json
           python scripts/send_email_report.py --report-file reports/us-weekly-review.json
+      - name: Write report marker
+        if: success() && steps.schedule_guard.outputs.skip != 'true' && steps.schedule_guard.outputs.marker != ''
+        run: |
+          mkdir -p reports/markers
+          printf '%s\n' "${{ steps.schedule_guard.outputs.reason }}" > "reports/markers/${{ steps.schedule_guard.outputs.marker }}.txt"
+      - name: Upload report marker
+        if: success() && steps.schedule_guard.outputs.skip != 'true' && steps.schedule_guard.outputs.marker != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.schedule_guard.outputs.marker }}
+          path: reports/markers/${{ steps.schedule_guard.outputs.marker }}.txt
+          retention-days: 14
       - name: Upload report artifact
         if: always()
         uses: actions/upload-artifact@v4

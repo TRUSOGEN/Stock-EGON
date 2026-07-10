@@ -11,6 +11,7 @@ from us_stock_agent.decision import classify_action, score_position
 from us_stock_agent.models import ActionRecommendation, Holding, MarketSnapshot, Portfolio, PositionScore
 from us_stock_agent.portfolio import build_portfolio_view
 from us_stock_agent.reports import render_daily_report
+from us_stock_agent.schedule_guard import DAILY_SCHEDULES, WEEKLY_SCHEDULES
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -167,10 +168,10 @@ class TestReportReadability(unittest.TestCase):
         """定时任务应避开整点和半点，降低 GitHub Actions 调度拥堵风险。"""
         workflow = (PROJECT_ROOT / ".github" / "workflows" / "us-stock-report.yml").read_text(encoding="utf-8")
 
-        self.assertIn('cron: "17 0 * * 2-6"', workflow)
-        self.assertIn('cron: "17 1 * * 6"', workflow)
-        self.assertIn("github.event.schedule == '17 0 * * 2-6'", workflow)
-        self.assertIn("github.event.schedule == '17 1 * * 6'", workflow)
+        for schedule in (*DAILY_SCHEDULES, *WEEKLY_SCHEDULES):
+            self.assertIn(f'cron: "{schedule}"', workflow)
+        self.assertIn("steps.schedule_guard.outputs.report_type == 'daily'", workflow)
+        self.assertIn("steps.schedule_guard.outputs.report_type == 'weekly'", workflow)
         self.assertNotIn('cron: "30 0 * * 2-6"', workflow)
         self.assertNotIn('cron: "0 1 * * 6"', workflow)
 
