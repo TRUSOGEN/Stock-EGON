@@ -2,8 +2,8 @@
 
 本模块把已经生成的规则引擎 Markdown 报告交给 OpenAI-compatible chat
 completions 接口进行二次改写。它不参与行情抓取、动作评分和风控判断，只负责把
-既有结论转换成更易读的投研助理口吻。未配置 key 时明确跳过；已配置但调用失败时
-抛出错误，避免在用户以为 LLM 已启用时悄悄发送未增强报告。
+既有结论转换成更易读的投研助理口吻。底层增强函数保持严格失败；邮件发送入口使用
+显式 fallback，把 LLM 外部调用失败写入正文后继续发送规则版报告。
 """
 
 from __future__ import annotations
@@ -143,6 +143,45 @@ def enhance_report_markdown(
         reason=None,
         model=active_config.model,
         provider=active_config.provider,
+    )
+
+
+def enhance_report_markdown_for_email(
+    markdown: str,
+    *,
+    report: dict[str, Any],
+    config: LLMConfig | None = None,
+    post: PostClient | None = None,
+) -> LLMEnhanceResult:
+    """邮件发送场景的 LLM 增强入口。
+
+    邮件报告的核心价值是把已经生成的规则版日报送达。LLM 改写属于可选增强：未配置
+    时正常跳过；配置完整但外部 API 超时、限流或返回异常时，在正文顶部加入明确警示，
+    然后发送规则版报告。配置读取本身的结构性错误仍会抛出，让错误正确暴露。
+    """
+    active_config = config or load_llm_config_from_env()
+    if not active_config.enabled:
+        return enhance_report_markdown(markdown, report=report, config=active_config, post=post)
+    try:
+        return enhance_report_markdown(markdown, report=report, config=active_config, post=post)
+    except Exception as exc:  # noqa: BLE001
+        reason = f"llm_enhancement_failed: {exc}"
+        return LLMEnhanceResult(
+            markdown=_prepend_llm_failure_notice(markdown, error=str(exc)),
+            used=False,
+            skipped=True,
+            reason=reason,
+            model=active_config.model,
+            provider=active_config.provider,
+        )
+
+
+def _prepend_llm_failure_notice(markdown: str, *, error: str) -> str:
+    """在规则报告顶部加入 LLM 增强失败提示。"""
+    return (
+        "> LLM 增强失败，已发送规则版报告。"
+        f"失败原因: {error}\n\n"
+        f"{markdown.strip()}"
     )
 
 

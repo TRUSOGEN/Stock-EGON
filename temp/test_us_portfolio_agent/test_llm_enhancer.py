@@ -5,7 +5,11 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-from us_stock_agent.llm_enhancer import enhance_report_markdown, load_llm_config_from_env
+from us_stock_agent.llm_enhancer import (
+    enhance_report_markdown,
+    enhance_report_markdown_for_email,
+    load_llm_config_from_env,
+)
 
 
 class FakeLLMResponse:
@@ -130,6 +134,31 @@ class TestLLMEnhancer(unittest.TestCase):
         self.assertIn("每只股票使用 `### TICKER — 动作标签`", payload["messages"][1]["content"])
         self.assertIn("标题下面只写一个自然段", payload["messages"][1]["content"])
         self.assertIn("不要把规则报告改写成日内交易", payload["messages"][1]["content"])
+
+    def test_email_enhancement_falls_back_when_llm_call_times_out(self) -> None:
+        """邮件场景中 LLM 外部调用超时时应发送带警示的规则报告。"""
+
+        def timeout_post(url: str, **kwargs: object) -> FakeLLMResponse:
+            raise TimeoutError("ark request timed out")
+
+        with patch.dict(
+            "os.environ",
+            {"ARK_API_KEY": "ark-secret", "ARK_MODEL": "ep-ark-model"},
+            clear=True,
+        ):
+            result = enhance_report_markdown_for_email(
+                "# 原始报告",
+                report={"module": "us_daily_report", "data": {"report_markdown": "# 原始报告"}},
+                post=timeout_post,
+            )
+
+        self.assertFalse(result.used)
+        self.assertTrue(result.skipped)
+        self.assertEqual(result.provider, "ark")
+        self.assertEqual(result.model, "ep-ark-model")
+        self.assertIn("llm_enhancement_failed", result.reason)
+        self.assertIn("LLM 增强失败，已发送规则版报告", result.markdown)
+        self.assertIn("# 原始报告", result.markdown)
 
 
 if __name__ == "__main__":

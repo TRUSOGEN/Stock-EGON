@@ -21,7 +21,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from a_stock_quant.output import dumps_json, make_error_result, make_result
 from us_stock_agent.charts import build_symbol_chart_images
-from us_stock_agent.llm_enhancer import enhance_report_markdown
+from us_stock_agent.llm_enhancer import enhance_report_markdown_for_email
 from us_stock_agent.market_data import YFinanceProvider
 from us_stock_agent.notifications import _parse_bool, send_email_markdown
 
@@ -40,7 +40,7 @@ def main() -> int:
     try:
         report = _load_report(Path(args.report_file))
         markdown = _extract_markdown(report)
-        llm_result = enhance_report_markdown(markdown, report=report)
+        llm_result = enhance_report_markdown_for_email(markdown, report=report)
         chart_images = _build_chart_images(report)
         send_result = send_email_markdown(
             llm_result.markdown,
