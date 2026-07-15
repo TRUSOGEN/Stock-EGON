@@ -9,6 +9,7 @@ completions 接口进行二次改写。它不参与行情抓取、动作评分�
 from __future__ import annotations
 
 import os
+import time
 from dataclasses import dataclass
 from typing import Any, Callable
 
@@ -19,6 +20,11 @@ except ModuleNotFoundError:  # pragma: no cover - 仅在极简测试环境触发
 
 
 PostClient = Callable[..., Any]
+
+_CONNECT_TIMEOUT_SECONDS = 10
+_DEFAULT_READ_TIMEOUT_SECONDS = 30
+_MAX_TIMEOUT_ATTEMPTS = 2
+_RETRY_BACKOFF_SECONDS = 1
 
 
 @dataclass(frozen=True)
@@ -93,7 +99,7 @@ def load_llm_config_from_env() -> LLMConfig:
         base_url=base_url,
         model=model,
         provider=provider,
-        timeout=_parse_int(_read_env("LLM_TIMEOUT_SECONDS"), default=45),
+        timeout=_parse_int(_read_env("LLM_TIMEOUT_SECONDS"), default=_DEFAULT_READ_TIMEOUT_SECONDS),
     )
 
 
@@ -123,14 +129,12 @@ def enhance_report_markdown(
     else:
         raise RuntimeError("当前环境缺少 requests，无法调用 LLM 增强接口。")
     payload = _build_chat_completion_payload(markdown, report=report, model=active_config.model)
-    response = client(
-        _chat_completions_url(active_config.base_url),
-        headers={
-            "Authorization": f"Bearer {active_config.api_key}",
-            "Content-Type": "application/json",
-        },
-        json=payload,
-        timeout=active_config.timeout,
+    response = _post_chat_completion_with_timeout_retry(
+        client,
+        url=_chat_completions_url(active_config.base_url),
+        api_key=active_config.api_key,
+        payload=payload,
+        read_timeout=active_config.timeout,
     )
     status_code = getattr(response, "status_code", None)
     if status_code is None or int(status_code) < 200 or int(status_code) >= 300:
@@ -183,6 +187,41 @@ def _prepend_llm_failure_notice(markdown: str, *, error: str) -> str:
         f"失败原因: {error}\n\n"
         f"{markdown.strip()}"
     )
+
+
+def _post_chat_completion_with_timeout_retry(
+    client: PostClient,
+    *,
+    url: str,
+    api_key: str,
+    payload: dict[str, Any],
+    read_timeout: int,
+) -> Any:
+    """在短暂网络超时时有限重试 chat completions 请求。"""
+    for attempt in range(_MAX_TIMEOUT_ATTEMPTS):
+        try:
+            return client(
+                url,
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+                timeout=(_CONNECT_TIMEOUT_SECONDS, read_timeout),
+            )
+        except Exception as exc:
+            if not _is_retryable_timeout(exc) or attempt == _MAX_TIMEOUT_ATTEMPTS - 1:
+                raise
+            time.sleep(_RETRY_BACKOFF_SECONDS * (2**attempt))
+
+    raise RuntimeError("LLM 超时重试流程未返回响应。")
+
+
+def _is_retryable_timeout(exc: Exception) -> bool:
+    """判断异常是否属于可安全重试的连接或读取超时。"""
+    if isinstance(exc, TimeoutError):
+        return True
+    return bool(requests is not None and isinstance(exc, requests.exceptions.Timeout))
 
 
 def _build_chat_completion_payload(markdown: str, *, report: dict[str, Any], model: str) -> dict[str, Any]:

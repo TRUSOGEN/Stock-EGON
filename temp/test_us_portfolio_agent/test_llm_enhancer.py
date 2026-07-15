@@ -135,6 +135,41 @@ class TestLLMEnhancer(unittest.TestCase):
         self.assertIn("标题下面只写一个自然段", payload["messages"][1]["content"])
         self.assertIn("不要把规则报告改写成日内交易", payload["messages"][1]["content"])
 
+    def test_enhance_report_markdown_retries_once_after_read_timeout(self) -> None:
+        """首次读取超时后应等待一次并使用第二次成功响应。"""
+        calls = []
+
+        def flaky_post(url: str, **kwargs: object) -> FakeLLMResponse:
+            calls.append((url, kwargs))
+            if len(calls) == 1:
+                raise TimeoutError("temporary ark timeout")
+            return FakeLLMResponse(
+                200,
+                {"choices": [{"message": {"content": "# 增强后的报告"}}]},
+            )
+
+        with patch.dict(
+            "os.environ",
+            {
+                "LLM_API_KEY": "secret",
+                "LLM_BASE_URL": "https://api.example.com/v1",
+                "LLM_MODEL": "provider/model",
+            },
+            clear=True,
+        ):
+            with patch("time.sleep") as sleep:
+                result = enhance_report_markdown_for_email(
+                    "# 原始报告",
+                    report={"module": "us_daily_report"},
+                    post=flaky_post,
+                )
+
+        self.assertTrue(result.used)
+        self.assertEqual(result.markdown, "# 增强后的报告")
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(calls[0][1]["timeout"], (10, 30))
+        sleep.assert_called_once_with(1)
+
     def test_email_enhancement_falls_back_when_llm_call_times_out(self) -> None:
         """邮件场景中 LLM 外部调用超时时应发送带警示的规则报告。"""
 
@@ -146,11 +181,12 @@ class TestLLMEnhancer(unittest.TestCase):
             {"ARK_API_KEY": "ark-secret", "ARK_MODEL": "ep-ark-model"},
             clear=True,
         ):
-            result = enhance_report_markdown_for_email(
-                "# 原始报告",
-                report={"module": "us_daily_report", "data": {"report_markdown": "# 原始报告"}},
-                post=timeout_post,
-            )
+            with patch("time.sleep"):
+                result = enhance_report_markdown_for_email(
+                    "# 原始报告",
+                    report={"module": "us_daily_report", "data": {"report_markdown": "# 原始报告"}},
+                    post=timeout_post,
+                )
 
         self.assertFalse(result.used)
         self.assertTrue(result.skipped)
@@ -159,6 +195,32 @@ class TestLLMEnhancer(unittest.TestCase):
         self.assertIn("llm_enhancement_failed", result.reason)
         self.assertIn("LLM 增强失败，已发送规则版报告", result.markdown)
         self.assertIn("# 原始报告", result.markdown)
+
+    def test_email_enhancement_falls_back_after_retry_attempts_are_exhausted(self) -> None:
+        """两次读取超时后应保留最终错误并发送规则报告。"""
+        calls = []
+
+        def timeout_post(url: str, **kwargs: object) -> FakeLLMResponse:
+            calls.append((url, kwargs))
+            raise TimeoutError("persistent ark timeout")
+
+        with patch.dict(
+            "os.environ",
+            {"ARK_API_KEY": "ark-secret", "ARK_MODEL": "ep-ark-model"},
+            clear=True,
+        ):
+            with patch("time.sleep") as sleep:
+                result = enhance_report_markdown_for_email(
+                    "# 原始报告",
+                    report={"module": "us_daily_report"},
+                    post=timeout_post,
+                )
+
+        self.assertFalse(result.used)
+        self.assertTrue(result.skipped)
+        self.assertEqual(len(calls), 2)
+        self.assertIn("persistent ark timeout", result.reason)
+        sleep.assert_called_once_with(1)
 
 
 if __name__ == "__main__":

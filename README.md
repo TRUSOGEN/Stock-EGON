@@ -20,7 +20,7 @@ Stock-EGON 是一个股票研究辅助项目，当前包含两部分：基于 AK
 
 别人要复用时，应 fork 仓库到自己的 GitHub 账号，并在自己的仓库 Secrets 里配置自己的 `PORTFOLIO_JSON`、邮箱 SMTP、新闻源 key 和可选 LLM key。真实持仓、邮箱授权码、新闻源 key 和 LLM key 都不应该写进代码。
 
-GitHub Actions 不能复用你本机的 Codex 登录态。需要 LLM 增强时，火山方舟应配置 `ARK_API_KEY` 和 `ARK_MODEL`，DeepSeek 官方接口应配置 `DEEPSEEK_API_KEY`，其他 OpenAI-compatible 服务可配置 `LLM_API_KEY`、`LLM_BASE_URL`、`LLM_MODEL`。也兼容 `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`OPENAI_MODEL` 这类常见命名。LLM 外部调用失败时，邮件会在正文顶部写明失败原因，并继续发送规则版报告。详细说明见 [docs/llm-config-guide.md](docs/llm-config-guide.md)。
+GitHub Actions 不能复用你本机的 Codex 登录态。需要 LLM 增强时，火山方舟应配置 `ARK_API_KEY` 和 `ARK_MODEL`，DeepSeek 官方接口应配置 `DEEPSEEK_API_KEY`，其他 OpenAI-compatible 服务可配置 `LLM_API_KEY`、`LLM_BASE_URL`、`LLM_MODEL`。也兼容 `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`OPENAI_MODEL` 这类常见命名。LLM 请求连接最多等待 10 秒，读取响应默认最多等待 30 秒，可通过 `LLM_TIMEOUT_SECONDS` 调整；连接或读取超时时会等待 1 秒后重试一次。LLM 外部调用最终失败时，邮件会在正文顶部写明失败原因，并继续发送规则版报告。详细说明见 [docs/llm-config-guide.md](docs/llm-config-guide.md)。
 
 ## 怎么读美股报告
 
