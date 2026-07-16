@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import unittest
 from unittest.mock import patch
 
@@ -24,6 +25,30 @@ class FakeLLMResponse:
     def json(self) -> dict[str, object]:
         """返回模拟 JSON。"""
         return self._payload
+
+    def iter_lines(self, *, decode_unicode: bool) -> list[str]:
+        """把兼容旧测试的完整 JSON 转换成一个 SSE 增量。"""
+        if not decode_unicode:
+            raise AssertionError("流式响应必须以文本方式读取。")
+        content = self._payload["choices"][0]["message"]["content"]
+        payload = {"choices": [{"delta": {"content": content}}]}
+        return [f"data: {json.dumps(payload, ensure_ascii=False)}", "data: [DONE]"]
+
+
+class FakeStreamingLLMResponse:
+    """模拟 OpenAI-compatible SSE 流式响应。"""
+
+    def __init__(self, status_code: int, lines: list[str]) -> None:
+        """保存响应状态和逐行 SSE 内容。"""
+        self.status_code = status_code
+        self._lines = lines
+        self.text = "response body"
+
+    def iter_lines(self, *, decode_unicode: bool) -> list[str]:
+        """返回模拟的 SSE 数据行。"""
+        if not decode_unicode:
+            raise AssertionError("流式响应必须以文本方式读取。")
+        return self._lines
 
 
 class TestLLMEnhancer(unittest.TestCase):
@@ -128,12 +153,46 @@ class TestLLMEnhancer(unittest.TestCase):
         self.assertEqual(calls[0][1]["headers"]["Authorization"], "Bearer secret")
         payload = calls[0][1]["json"]
         self.assertEqual(payload["model"], "provider/model")
+        self.assertTrue(payload["stream"])
+        self.assertEqual(payload["max_tokens"], 1600)
+        self.assertTrue(calls[0][1]["stream"])
         self.assertIn("原始报告", payload["messages"][1]["content"])
         self.assertIn("美股长期持仓复盘助理", payload["messages"][1]["content"])
         self.assertIn("1 个月、1 个季度和 1 年视角", payload["messages"][1]["content"])
         self.assertIn("每只股票使用 `### TICKER — 动作标签`", payload["messages"][1]["content"])
         self.assertIn("标题下面只写一个自然段", payload["messages"][1]["content"])
         self.assertIn("不要把规则报告改写成日内交易", payload["messages"][1]["content"])
+
+    def test_enhance_report_markdown_assembles_sse_delta_content(self) -> None:
+        """流式响应应按顺序拼接每个 SSE delta 的 Markdown 内容。"""
+        def fake_post(url: str, **kwargs: object) -> FakeStreamingLLMResponse:
+            return FakeStreamingLLMResponse(
+                200,
+                [
+                    'data: {"choices":[{"delta":{"content":"# 人话版"}}]}',
+                    "",
+                    'data: {"choices":[{"delta":{"content":"简报\\n\\n继续持有。"}}]}',
+                    "data: [DONE]",
+                ],
+            )
+
+        with patch.dict(
+            "os.environ",
+            {
+                "LLM_API_KEY": "secret",
+                "LLM_BASE_URL": "https://api.example.com/v1",
+                "LLM_MODEL": "provider/model",
+            },
+            clear=True,
+        ):
+            result = enhance_report_markdown(
+                "# 原始报告",
+                report={"module": "us_daily_report"},
+                post=fake_post,
+            )
+
+        self.assertTrue(result.used)
+        self.assertEqual(result.markdown, "# 人话版简报\n\n继续持有。")
 
     def test_enhance_report_markdown_retries_once_after_read_timeout(self) -> None:
         """首次读取超时后应等待一次并使用第二次成功响应。"""

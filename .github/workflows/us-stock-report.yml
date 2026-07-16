@@ -68,6 +68,7 @@ jobs:
           LLM_BASE_URL: ${{ secrets.LLM_BASE_URL || vars.LLM_BASE_URL }}
           LLM_MODEL: ${{ secrets.LLM_MODEL || vars.LLM_MODEL }}
           LLM_TIMEOUT_SECONDS: ${{ secrets.LLM_TIMEOUT_SECONDS || vars.LLM_TIMEOUT_SECONDS }}
+          LLM_MAX_TOKENS: ${{ secrets.LLM_MAX_TOKENS || vars.LLM_MAX_TOKENS }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL || vars.OPENAI_BASE_URL }}
           OPENAI_MODEL: ${{ secrets.OPENAI_MODEL || vars.OPENAI_MODEL }}
@@ -112,6 +113,7 @@ jobs:
           LLM_BASE_URL: ${{ secrets.LLM_BASE_URL || vars.LLM_BASE_URL }}
           LLM_MODEL: ${{ secrets.LLM_MODEL || vars.LLM_MODEL }}
           LLM_TIMEOUT_SECONDS: ${{ secrets.LLM_TIMEOUT_SECONDS || vars.LLM_TIMEOUT_SECONDS }}
+          LLM_MAX_TOKENS: ${{ secrets.LLM_MAX_TOKENS || vars.LLM_MAX_TOKENS }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL || vars.OPENAI_BASE_URL }}
           OPENAI_MODEL: ${{ secrets.OPENAI_MODEL || vars.OPENAI_MODEL }}

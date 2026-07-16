@@ -43,7 +43,7 @@ QQ 邮箱推送推荐只配置 `EMAIL_ADDRESS` 和 `EMAIL_AUTH_CODE`。`EMAIL_AD
 
 其他邮箱可继续配置完整 SMTP 字段：`EMAIL_SMTP_HOST`、`EMAIL_SMTP_PORT`、`EMAIL_USERNAME`、`EMAIL_PASSWORD`、`EMAIL_FROM`、`EMAIL_TO`。配置后 workflow 会在生成日报或周报 JSON 后调用 `scripts/send_email_report.py`，把报告整理成更适合邮件阅读的文本和 HTML 正文后发出。Gmail、QQ 邮箱、Outlook 等通常需要应用专用密码，不要填写网页登录密码。
 
-LLM 投研助理可选配置。火山方舟应配置 `ARK_API_KEY` 和 `ARK_MODEL`，默认使用 `https://ark.cn-beijing.volces.com/api/v3`。DeepSeek 官方接口可配置 `DEEPSEEK_API_KEY`，系统会自动使用 `https://api.deepseek.com` 和 `deepseek-chat`。通用 OpenAI-compatible 服务可配置 `LLM_API_KEY`、`LLM_BASE_URL`、`LLM_MODEL`。为了兼容常见项目，也支持 `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`OPENAI_MODEL`。LLM 连接最多等待 10 秒，响应读取默认最多等待 30 秒，并在连接或读取超时时等待 1 秒后重试一次；已配置 LLM key 但最终调用失败时，邮件正文顶部会写明失败原因，并继续发送规则报告，避免可选改写服务阻断核心日报送达。细节见 [llm-config-guide.md](llm-config-guide.md)。
+LLM 投研助理可选配置。火山方舟应配置 `ARK_API_KEY` 和 `ARK_MODEL`，默认使用 `https://ark.cn-beijing.volces.com/api/v3`。DeepSeek 官方接口可配置 `DEEPSEEK_API_KEY`，系统会自动使用 `https://api.deepseek.com` 和 `deepseek-chat`。通用 OpenAI-compatible 服务可配置 `LLM_API_KEY`、`LLM_BASE_URL`、`LLM_MODEL`。为了兼容常见项目，也支持 `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`OPENAI_MODEL`。LLM 使用流式 Chat Completions，连接最多等待 10 秒，连续数据块间隔默认最多等待 30 秒，可通过 `LLM_TIMEOUT_SECONDS` 调整；单次改写默认最多生成 1600 tokens，可用 `LLM_MAX_TOKENS` 调整。连接或首次响应超时时等待 1 秒后重试一次；流中断和其他最终调用失败会把失败原因写在邮件正文顶部，并继续发送规则报告。细节见 [llm-config-guide.md](llm-config-guide.md)。
 
 企业微信推送脚本仍保留在 `scripts/send_wechat_report.py`，但默认 workflow 已改为邮件推送。如果后续重新使用企业微信群机器人，可以再配置 `WECHAT_WEBHOOK_URL` 并把 workflow 接回该脚本。
 
