@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """为 GitHub Actions 定时补跑生成去重判断。
 
-脚本在 workflow 开始时运行：手动触发时直接放行；定时触发时读取仓库最近的
-artifact 名称，若当天同类型报告已经上传过成功 marker，则输出 skip=true。
-它只访问 GitHub Actions metadata，不读取持仓、行情、邮件或 LLM secret。
+脚本在 workflow 开始时运行：普通手动触发时直接放行；定时触发和带去重标记的
+外部补发会读取仓库最近的 artifact 名称，若当天同类型报告已经上传过成功 marker，
+则输出 skip=true。它只访问 GitHub Actions metadata，不读取持仓、行情、邮件或
+LLM secret。
 """
 
 from __future__ import annotations
@@ -26,13 +27,18 @@ def main() -> int:
     event_name = os.environ.get("GITHUB_EVENT_NAME", "").strip()
     schedule = os.environ.get("GITHUB_EVENT_SCHEDULE", "").strip()
     report_type = os.environ.get("WORKFLOW_REPORT_TYPE", "daily").strip()
+    manual_deduplication = _parse_bool(os.environ.get("WORKFLOW_DEDUPE_MANUAL", "false"))
     now_iso = _utc_now_iso()
-    artifact_names = _fetch_artifact_names_for_event(event_name)
+    artifact_names = _fetch_artifact_names_for_event(
+        event_name,
+        manual_deduplication=manual_deduplication,
+    )
 
     decision = build_guard_decision(
         event_name=event_name,
         schedule=schedule,
         report_type=report_type,
+        manual_deduplication=manual_deduplication,
         now_iso=now_iso,
         artifact_names=artifact_names,
     )
@@ -52,9 +58,9 @@ def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
-def _fetch_artifact_names_for_event(event_name: str) -> list[str]:
-    """仅在 schedule 事件中读取仓库 artifact 名称。"""
-    if event_name != "schedule":
+def _fetch_artifact_names_for_event(*, event_name: str, manual_deduplication: bool) -> list[str]:
+    """在自动调度或外部去重补发时读取仓库 artifact 名称。"""
+    if event_name != "schedule" and not manual_deduplication:
         return []
     token = os.environ.get("GITHUB_TOKEN", "").strip()
     repo = os.environ.get("GITHUB_REPOSITORY", "").strip()
@@ -63,6 +69,16 @@ def _fetch_artifact_names_for_event(event_name: str) -> list[str]:
     if not repo:
         raise ScheduleGuardError("schedule guard 缺少 GITHUB_REPOSITORY，无法读取 marker artifacts。")
     return _fetch_artifact_names(repo=repo, token=token)
+
+
+def _parse_bool(value: str) -> bool:
+    """解析 GitHub Actions 输入的布尔字符串。"""
+    normalized = value.strip().lower()
+    if normalized in {"true", "1", "yes", "on"}:
+        return True
+    if normalized in {"false", "0", "no", "off", ""}:
+        return False
+    raise ScheduleGuardError(f"无法解析布尔值: {value}")
 
 
 def _fetch_artifact_names(*, repo: str, token: str) -> list[str]:

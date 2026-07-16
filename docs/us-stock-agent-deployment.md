@@ -53,7 +53,7 @@ LLM 投研助理可选配置。火山方舟应配置 `ARK_API_KEY` 和 `ARK_MODE
 
 `.github/workflows/us-stock-report.yml` 默认北京时间周二到周六 08:17、08:37、08:57 左右尝试生成日报，对应前一美股交易日收盘后；北京时间周六 09:17、09:37、09:57 左右尝试生成周报。workflow 也支持手动触发，`report_type` 可选 `daily` 或 `weekly`。正式生成前会先运行 `scripts/preflight.py`，提早暴露持仓 JSON、邮件、LLM、新闻源和正文图表配置的问题。
 
-GitHub Actions 的 schedule 使用 UTC 时间，且官方说明定时任务可能因高负载延迟，极端情况下也可能被丢弃。当前配置刻意避开整点和半点，并提供同一天内的两次自动补跑；每次成功发送后会上传当天同类型报告的 marker artifact，后续自动补跑发现 marker 后会跳过，避免重复邮件。如果某天三次自动机会都没有收到邮件，进入 `Actions` -> `US Stock Portfolio Report`，手动选择 `daily` 运行即可补发当天日报。若要严格保证每天固定时间送达，需要外接独立 scheduler 或监控补跑服务。
+GitHub Actions 的 schedule 使用 UTC 时间，且官方说明定时任务可能因高负载延迟，极端情况下也可能被丢弃。当前配置刻意避开整点和半点，并提供同一天内的两次自动补跑；每次成功发送后会上传当天同类型报告的 marker artifact，后续自动补跑发现 marker 后会跳过，避免重复邮件。独立 scheduler 或监控补跑服务应调用 `workflow_dispatch`，传入 `report_type=daily` 和 `dedupe=true`；workflow 会读取当天 marker，已发送则跳过，未发送则生成并投递日报。Actions 页面上的人工补发保持 `dedupe=false` 默认值，确保用户可以主动重发当天报告。
 
 ## 暂停与恢复
 

@@ -69,6 +69,7 @@ def build_guard_decision(
     event_name: str,
     schedule: str = "",
     report_type: str = "",
+    manual_deduplication: bool = False,
     now_iso: str,
     artifact_names: list[str],
 ) -> GuardDecision:
@@ -91,9 +92,24 @@ def build_guard_decision(
         )
     if event_name == "workflow_dispatch":
         resolved_type = normalize_report_type(report_type or "daily")
+        marker = marker_name(resolved_type, now_iso)
+        if manual_deduplication and marker in set(artifact_names):
+            return GuardDecision(
+                report_type=resolved_type,
+                marker=marker,
+                skip=True,
+                reason=f"当天已有成功 marker: {marker}",
+            )
+        if manual_deduplication:
+            return GuardDecision(
+                report_type=resolved_type,
+                marker=marker,
+                skip=False,
+                reason=f"外部补发未发现当天成功 marker: {marker}",
+            )
         return GuardDecision(
             report_type=resolved_type,
-            marker=marker_name(resolved_type, now_iso),
+            marker=marker,
             skip=False,
             reason="手动触发不做去重跳过。",
         )

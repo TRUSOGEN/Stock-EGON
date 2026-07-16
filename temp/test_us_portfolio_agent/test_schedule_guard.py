@@ -62,6 +62,20 @@ class TestScheduleGuard(unittest.TestCase):
         self.assertFalse(decision.skip)
         self.assertEqual(decision.report_type, "daily")
 
+    def test_workflow_dispatch_dedupes_when_requested(self) -> None:
+        """外部补发请求应在当天已有 marker 时跳过重复邮件。"""
+        decision = build_guard_decision(
+            event_name="workflow_dispatch",
+            report_type="daily",
+            manual_deduplication=True,
+            now_iso="2026-07-16T01:05:00Z",
+            artifact_names=["us-stock-report-marker-daily-2026-07-16"],
+        )
+
+        self.assertTrue(decision.skip)
+        self.assertEqual(decision.marker, "us-stock-report-marker-daily-2026-07-16")
+        self.assertIn("当天已有成功 marker", decision.reason)
+
     def test_unknown_schedule_fails_explicitly(self) -> None:
         """未知 cron 不应被静默当成日报或周报。"""
         with self.assertRaises(ScheduleGuardError):
@@ -79,6 +93,8 @@ class TestScheduleGuard(unittest.TestCase):
 
         for schedule in (*DAILY_SCHEDULES, *WEEKLY_SCHEDULES):
             self.assertIn(f'cron: "{schedule}"', content)
+        self.assertIn("dedupe:", content)
+        self.assertIn("WORKFLOW_DEDUPE_MANUAL", content)
         self.assertIn("python scripts/schedule_guard.py", content)
         self.assertIn("Upload report marker", content)
 

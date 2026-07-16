@@ -7,6 +7,11 @@ on:
         description: "daily or weekly"
         required: true
         default: "daily"
+      dedupe:
+        description: "skip when today's successful report marker exists"
+        required: false
+        default: false
+        type: boolean
   schedule:
     - cron: "17 0 * * 2-6"
     - cron: "37 0 * * 2-6"
@@ -39,6 +44,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           GITHUB_EVENT_SCHEDULE: ${{ github.event.schedule }}
           WORKFLOW_REPORT_TYPE: ${{ github.event.inputs.report_type || 'daily' }}
+          WORKFLOW_DEDUPE_MANUAL: ${{ github.event.inputs.dedupe || 'false' }}
         run: python scripts/schedule_guard.py
       - name: Install dependencies
         if: steps.schedule_guard.outputs.skip != 'true'
