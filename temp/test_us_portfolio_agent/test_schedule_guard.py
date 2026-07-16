@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
+from scripts import schedule_guard as schedule_guard_script
 from us_stock_agent.schedule_guard import (
     DAILY_SCHEDULES,
     WEEKLY_SCHEDULES,
@@ -75,6 +77,36 @@ class TestScheduleGuard(unittest.TestCase):
         self.assertTrue(decision.skip)
         self.assertEqual(decision.marker, "us-stock-report-marker-daily-2026-07-16")
         self.assertIn("当天已有成功 marker", decision.reason)
+
+    def test_script_accepts_deduplicated_external_dispatch(self) -> None:
+        """补发脚本应向 artifact 查询函数传递具名事件上下文。"""
+        outputs: dict[str, str] = {}
+
+        def fetch_artifact_names(*, event_name: str, manual_deduplication: bool) -> list[str]:
+            self.assertEqual(event_name, "workflow_dispatch")
+            self.assertTrue(manual_deduplication)
+            return []
+
+        with patch.dict(
+            "os.environ",
+            {
+                "GITHUB_EVENT_NAME": "workflow_dispatch",
+                "WORKFLOW_REPORT_TYPE": "daily",
+                "WORKFLOW_DEDUPE_MANUAL": "true",
+            },
+            clear=True,
+        ):
+            with patch.object(schedule_guard_script, "_utc_now_iso", return_value="2026-07-16T01:05:00Z"):
+                with patch.object(
+                    schedule_guard_script,
+                    "_fetch_artifact_names_for_event",
+                    side_effect=fetch_artifact_names,
+                ):
+                    with patch.object(schedule_guard_script, "_write_outputs", side_effect=outputs.update):
+                        self.assertEqual(schedule_guard_script.main(), 0)
+
+        self.assertEqual(outputs["skip"], "false")
+        self.assertEqual(outputs["report_type"], "daily")
 
     def test_unknown_schedule_fails_explicitly(self) -> None:
         """未知 cron 不应被静默当成日报或周报。"""

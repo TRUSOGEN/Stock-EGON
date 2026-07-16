@@ -30,7 +30,7 @@ def main() -> int:
     manual_deduplication = _parse_bool(os.environ.get("WORKFLOW_DEDUPE_MANUAL", "false"))
     now_iso = _utc_now_iso()
     artifact_names = _fetch_artifact_names_for_event(
-        event_name,
+        event_name=event_name,
         manual_deduplication=manual_deduplication,
     )
 
