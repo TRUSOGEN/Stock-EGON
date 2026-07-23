@@ -6,6 +6,8 @@ import json
 import unittest
 from unittest.mock import patch
 
+import requests
+
 from us_stock_agent.llm_enhancer import (
     enhance_report_markdown,
     enhance_report_markdown_for_email,
@@ -49,6 +51,30 @@ class FakeStreamingLLMResponse:
         if not decode_unicode:
             raise AssertionError("流式响应必须以文本方式读取。")
         return self._lines
+
+
+class FakeStreamingTimeoutResponse:
+    """模拟 HTTP 已建立、读取 SSE 数据时才超时的响应。"""
+
+    status_code = 200
+
+    def iter_lines(self, *, decode_unicode: bool) -> list[str]:
+        """在消费响应流时抛出 requests 读取超时。"""
+        if not decode_unicode:
+            raise AssertionError("流式响应必须以文本方式读取。")
+        raise requests.exceptions.ReadTimeout("stream stalled")
+
+
+class FakeStreamingConnectionTimeoutResponse:
+    """模拟 requests 把底层 SSE 读取超时包装为 ConnectionError。"""
+
+    status_code = 200
+
+    def iter_lines(self, *, decode_unicode: bool) -> list[str]:
+        """抛出 requests 实际流消费路径常见的超时包装异常。"""
+        if not decode_unicode:
+            raise AssertionError("流式响应必须以文本方式读取。")
+        raise requests.exceptions.ConnectionError("HTTPSConnectionPool: Read timed out.")
 
 
 class TestLLMEnhancer(unittest.TestCase):
@@ -227,6 +253,80 @@ class TestLLMEnhancer(unittest.TestCase):
         self.assertEqual(result.markdown, "# 增强后的报告")
         self.assertEqual(len(calls), 2)
         self.assertEqual(calls[0][1]["timeout"], (10, 30))
+        sleep.assert_called_once_with(1)
+
+    def test_enhance_report_markdown_retries_when_sse_consumption_times_out(self) -> None:
+        """HTTP 已建立但 SSE 读取超时时也应重新发起一次完整请求。"""
+        calls = []
+
+        def flaky_stream_post(url: str, **kwargs: object):
+            calls.append((url, kwargs))
+            if len(calls) == 1:
+                return FakeStreamingTimeoutResponse()
+            return FakeStreamingLLMResponse(
+                200,
+                [
+                    'data: {"choices":[{"delta":{"content":"# 重试成功"}}]}',
+                    "data: [DONE]",
+                ],
+            )
+
+        with patch.dict(
+            "os.environ",
+            {
+                "LLM_API_KEY": "secret",
+                "LLM_BASE_URL": "https://api.example.com/v1",
+                "LLM_MODEL": "provider/model",
+            },
+            clear=True,
+        ):
+            with patch("time.sleep") as sleep:
+                result = enhance_report_markdown_for_email(
+                    "# 原始报告",
+                    report={"module": "us_daily_report"},
+                    post=flaky_stream_post,
+                )
+
+        self.assertTrue(result.used)
+        self.assertEqual(result.markdown, "# 重试成功")
+        self.assertEqual(len(calls), 2)
+        sleep.assert_called_once_with(1)
+
+    def test_enhance_report_markdown_retries_wrapped_sse_read_timeout(self) -> None:
+        """requests 包装后的 SSE ReadTimeout 仍应重试完整请求。"""
+        calls = []
+
+        def flaky_stream_post(url: str, **kwargs: object):
+            calls.append((url, kwargs))
+            if len(calls) == 1:
+                return FakeStreamingConnectionTimeoutResponse()
+            return FakeStreamingLLMResponse(
+                200,
+                [
+                    'data: {"choices":[{"delta":{"content":"# 包装超时重试成功"}}]}',
+                    "data: [DONE]",
+                ],
+            )
+
+        with patch.dict(
+            "os.environ",
+            {
+                "LLM_API_KEY": "secret",
+                "LLM_BASE_URL": "https://api.example.com/v1",
+                "LLM_MODEL": "provider/model",
+            },
+            clear=True,
+        ):
+            with patch("time.sleep") as sleep:
+                result = enhance_report_markdown_for_email(
+                    "# 原始报告",
+                    report={"module": "us_daily_report"},
+                    post=flaky_stream_post,
+                )
+
+        self.assertTrue(result.used)
+        self.assertEqual(result.markdown, "# 包装超时重试成功")
+        self.assertEqual(len(calls), 2)
         sleep.assert_called_once_with(1)
 
     def test_email_enhancement_falls_back_when_llm_call_times_out(self) -> None:

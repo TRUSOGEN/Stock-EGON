@@ -138,17 +138,13 @@ def enhance_report_markdown(
         model=active_config.model,
         max_tokens=active_config.max_tokens,
     )
-    response = _post_chat_completion_with_timeout_retry(
+    enhanced_markdown = _request_streaming_chat_completion_with_timeout_retry(
         client,
         url=_chat_completions_url(active_config.base_url),
         api_key=active_config.api_key,
         payload=payload,
         read_timeout=active_config.timeout,
     )
-    status_code = getattr(response, "status_code", None)
-    if status_code is None or int(status_code) < 200 or int(status_code) >= 300:
-        raise ValueError(f"LLM 增强请求失败，HTTP 状态码: {status_code}。")
-    enhanced_markdown = _extract_streaming_chat_completion_content(response)
     return LLMEnhanceResult(
         markdown=enhanced_markdown,
         used=True,
@@ -198,18 +194,18 @@ def _prepend_llm_failure_notice(markdown: str, *, error: str) -> str:
     )
 
 
-def _post_chat_completion_with_timeout_retry(
+def _request_streaming_chat_completion_with_timeout_retry(
     client: PostClient,
     *,
     url: str,
     api_key: str,
     payload: dict[str, Any],
     read_timeout: int,
-) -> Any:
-    """在短暂网络超时时有限重试 chat completions 请求。"""
+) -> str:
+    """在短暂网络超时时重试完整的流式 chat completions 请求。"""
     for attempt in range(_MAX_TIMEOUT_ATTEMPTS):
         try:
-            return client(
+            response = client(
                 url,
                 headers={
                     "Authorization": f"Bearer {api_key}",
@@ -219,6 +215,10 @@ def _post_chat_completion_with_timeout_retry(
                 timeout=(_CONNECT_TIMEOUT_SECONDS, read_timeout),
                 stream=True,
             )
+            status_code = getattr(response, "status_code", None)
+            if status_code is None or int(status_code) < 200 or int(status_code) >= 300:
+                raise ValueError(f"LLM 增强请求失败，HTTP 状态码: {status_code}。")
+            return _extract_streaming_chat_completion_content(response)
         except Exception as exc:
             if not _is_retryable_timeout(exc) or attempt == _MAX_TIMEOUT_ATTEMPTS - 1:
                 raise
@@ -231,7 +231,31 @@ def _is_retryable_timeout(exc: Exception) -> bool:
     """判断异常是否属于可安全重试的连接或读取超时。"""
     if isinstance(exc, TimeoutError):
         return True
-    return bool(requests is not None and isinstance(exc, requests.exceptions.Timeout))
+    if requests is None:
+        return False
+    if isinstance(exc, requests.exceptions.Timeout):
+        return True
+    if not isinstance(exc, requests.exceptions.ConnectionError):
+        return False
+
+    pending: list[BaseException] = [exc]
+    visited: set[int] = set()
+    while pending:
+        current = pending.pop()
+        if id(current) in visited:
+            continue
+        visited.add(id(current))
+        if isinstance(current, (TimeoutError, requests.exceptions.Timeout)):
+            return True
+        if type(current).__name__ == "ReadTimeoutError":
+            return True
+        pending.extend(item for item in current.args if isinstance(item, BaseException))
+        if current.__cause__ is not None:
+            pending.append(current.__cause__)
+        if current.__context__ is not None:
+            pending.append(current.__context__)
+
+    return "read timed out" in str(exc).lower()
 
 
 def _build_chat_completion_payload(
