@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import os
 import time
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 from typing import Any, Callable
 
@@ -306,21 +307,16 @@ def _extract_streaming_chat_completion_content(response: Any) -> str:
 
     fragments: list[str] = []
     completed = False
-    for line in iter_lines(decode_unicode=True):
-        if not line:
-            continue
-        if not isinstance(line, str):
-            raise ValueError("LLM 流式响应包含非文本数据行。")
-        if not line.startswith("data:"):
-            continue
-        data = line.removeprefix("data:").strip()
+    for event_index, data in enumerate(_iter_sse_data_events(iter_lines(decode_unicode=True)), start=1):
         if data == "[DONE]":
             completed = True
             break
         try:
             payload = json.loads(data)
         except json.JSONDecodeError as exc:
-            raise ValueError("LLM 流式响应包含非法 JSON。") from exc
+            raise ValueError(
+                f"LLM 流式响应第 {event_index} 个 data 事件包含非法 JSON（第 {exc.lineno} 行第 {exc.colno} 列）。"
+            ) from exc
         choices = payload.get("choices") if isinstance(payload, dict) else None
         if not isinstance(choices, list) or not choices:
             raise ValueError("LLM 流式响应缺少 choices。")
@@ -343,6 +339,32 @@ def _extract_streaming_chat_completion_content(response: Any) -> str:
     if not markdown:
         raise ValueError("LLM 流式响应缺少 delta.content。")
     return markdown
+
+
+def _iter_sse_data_events(lines: Iterable[str]) -> Iterator[str]:
+    """按 SSE 事件边界合并 data 行，并兼容首行 UTF-8 BOM。"""
+    pending_data_lines: list[str] = []
+    for raw_line in lines:
+        if not isinstance(raw_line, str):
+            raise ValueError("LLM 流式响应包含非文本数据行。")
+        line = raw_line.lstrip("\ufeff")
+        if not line:
+            if pending_data_lines:
+                yield "\n".join(pending_data_lines)
+                pending_data_lines.clear()
+            continue
+        if not line.startswith("data:"):
+            continue
+        data = line.removeprefix("data:").strip()
+        if data == "[DONE]":
+            if pending_data_lines:
+                yield "\n".join(pending_data_lines)
+                pending_data_lines.clear()
+            yield data
+            continue
+        pending_data_lines.append(data)
+    if pending_data_lines:
+        yield "\n".join(pending_data_lines)
 
 
 def _chat_completions_url(base_url: str) -> str:
