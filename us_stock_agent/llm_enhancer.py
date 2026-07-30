@@ -139,6 +139,8 @@ def enhance_report_markdown(
         model=active_config.model,
         max_tokens=active_config.max_tokens,
     )
+    if _is_deepseek_api(active_config.base_url):
+        payload["thinking"] = {"type": "disabled"}
     enhanced_markdown = _request_streaming_chat_completion_with_timeout_retry(
         client,
         url=_chat_completions_url(active_config.base_url),
@@ -297,6 +299,11 @@ def _build_chat_completion_payload(
         "max_tokens": max_tokens,
         "stream": True,
     }
+
+
+def _is_deepseek_api(base_url: str) -> bool:
+    """判断当前请求是否发往 DeepSeek 官方 OpenAI-compatible API。"""
+    return base_url.rstrip("/").lower() == "https://api.deepseek.com"
 
 
 def _extract_streaming_chat_completion_content(response: Any) -> str:

@@ -53,6 +53,10 @@ flowchart LR
 
 系统使用 `stream=true` 的 Chat Completions SSE 响应，持续接收模型增量文本并在 `[DONE]` 后拼接完整 Markdown。解析器遵循 SSE 的事件边界：会合并同一事件的多行 `data:` 字段，并兼容响应首行的 UTF-8 BOM；这两种协议细节不会错误触发规则版回退。连接最多等待 10 秒，流读取默认允许相邻数据块间隔 30 秒，可通过 `LLM_TIMEOUT_SECONDS` 调整；因此完整报告可以超过 30 秒生成，只要流没有中断。单次改写默认最多生成 `1600` tokens，可用 `LLM_MAX_TOKENS` 调整，且该值必须是正整数。连接、首次响应或 SSE 消费阶段发生读取超时时，系统等待 1 秒后重新发起一次完整请求；第二次仍超时才保留失败原因并发送规则报告，避免把部分生成内容误当作完整投资复盘。鉴权失败、模型不可用、HTTP 非成功状态和响应格式错误不会重试，会直接进入邮件的规则报告回退路径。非法 JSON 会在失败提示中给出 SSE 事件序号和 JSON 行列位置，但不会回显原始模型输出，避免错误信息泄露报告内容。
 
+## DeepSeek 思考模式
+
+DeepSeek 官方 API 默认启用思考模式，并将思维链写入 `reasoning_content`。邮件增强只需要最终 Markdown 正文，因此当 `LLM_BASE_URL=https://api.deepseek.com` 时，系统会请求 `thinking={"type":"disabled"}`，把输出 token 留给最终 `content`，且不会把思维链写入邮件。
+
 ## Codex 边界
 
 GitHub Actions runner 没有你的本机 Codex 登录态，也不会自动拥有 Codex 桌面或 Codex CLI 的会话。要在云端定时任务里稳定运行，应该使用显式 API key。后续如果要做交互式问答，需要增加独立的消息入口、鉴权和回调服务，本指南只覆盖定时邮件增强。
