@@ -189,6 +189,35 @@ class TestLLMEnhancer(unittest.TestCase):
         self.assertIn("标题下面只写一个自然段", payload["messages"][1]["content"])
         self.assertIn("不要把规则报告改写成日内交易", payload["messages"][1]["content"])
 
+    def test_deepseek_request_disables_thinking_to_preserve_email_body_tokens(self) -> None:
+        """DeepSeek 邮件改写应关闭思考模式，避免推理流挤占最终正文。"""
+        calls = []
+
+        def fake_post(url: str, **kwargs: object) -> FakeLLMResponse:
+            calls.append((url, kwargs))
+            return FakeLLMResponse(
+                200,
+                {"choices": [{"message": {"content": "# DeepSeek 报告"}}]},
+            )
+
+        with patch.dict(
+            "os.environ",
+            {
+                "LLM_API_KEY": "secret",
+                "LLM_BASE_URL": "https://api.deepseek.com",
+                "LLM_MODEL": "deepseek-v4-pro",
+            },
+            clear=True,
+        ):
+            result = enhance_report_markdown(
+                "# 原始报告",
+                report={"module": "us_daily_report"},
+                post=fake_post,
+            )
+
+        self.assertTrue(result.used)
+        self.assertEqual(calls[0][1]["json"]["thinking"], {"type": "disabled"})
+
     def test_enhance_report_markdown_assembles_sse_delta_content(self) -> None:
         """流式响应应按顺序拼接每个 SSE delta 的 Markdown 内容。"""
         def fake_post(url: str, **kwargs: object) -> FakeStreamingLLMResponse:
@@ -219,6 +248,67 @@ class TestLLMEnhancer(unittest.TestCase):
 
         self.assertTrue(result.used)
         self.assertEqual(result.markdown, "# 人话版简报\n\n继续持有。")
+
+    def test_enhance_report_markdown_accepts_bom_and_multiline_sse_event(self) -> None:
+        """标准多行 SSE data 事件和首行 BOM 不应触发规则版回退。"""
+        def fake_post(url: str, **kwargs: object) -> FakeStreamingLLMResponse:
+            return FakeStreamingLLMResponse(
+                200,
+                [
+                    '\ufeffdata: {"choices":[{"delta":',
+                    'data: {"content":"# 人话版简报"}}]}',
+                    "",
+                    "data: [DONE]",
+                ],
+            )
+
+        with patch.dict(
+            "os.environ",
+            {
+                "LLM_API_KEY": "secret",
+                "LLM_BASE_URL": "https://api.example.com/v1",
+                "LLM_MODEL": "provider/model",
+            },
+            clear=True,
+        ):
+            result = enhance_report_markdown_for_email(
+                "# 原始报告",
+                report={"module": "us_daily_report"},
+                post=fake_post,
+            )
+
+        self.assertTrue(result.used)
+        self.assertEqual(result.markdown, "# 人话版简报")
+
+    def test_email_fallback_reports_invalid_sse_json_without_echoing_payload(self) -> None:
+        """非法 SSE JSON 应保留定位信息，但不得把原始载荷写进邮件。"""
+        malformed_payload = '{"choices":[{"delta":{"content":"confidential"}}]'
+
+        def fake_post(url: str, **kwargs: object) -> FakeStreamingLLMResponse:
+            return FakeStreamingLLMResponse(
+                200,
+                [f"data: {malformed_payload}", "data: [DONE]"],
+            )
+
+        with patch.dict(
+            "os.environ",
+            {
+                "LLM_API_KEY": "secret",
+                "LLM_BASE_URL": "https://api.example.com/v1",
+                "LLM_MODEL": "provider/model",
+            },
+            clear=True,
+        ):
+            result = enhance_report_markdown_for_email(
+                "# 原始报告",
+                report={"module": "us_daily_report"},
+                post=fake_post,
+            )
+
+        self.assertFalse(result.used)
+        self.assertIn("第 1 个 data 事件包含非法 JSON", result.markdown)
+        self.assertIn("第 1 行第", result.markdown)
+        self.assertNotIn("confidential", result.markdown)
 
     def test_enhance_report_markdown_retries_once_after_read_timeout(self) -> None:
         """首次读取超时后应等待一次并使用第二次成功响应。"""
