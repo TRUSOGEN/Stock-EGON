@@ -363,9 +363,17 @@ def _symbol_from_heading(value: str) -> str | None:
     return match.group(1).upper()
 
 
+def _chart_caption(filename: str) -> str:
+    """把图表附件名转换成读者可理解的图表说明。"""
+    symbol = _symbol_from_filename(filename)
+    if symbol:
+        return f"{symbol} 近 3 个月价格与成交量"
+    return "近 3 个月价格与成交量"
+
+
 def _render_inline_image_html(image: EmailAttachment, *, interactive_chart_url: str | None = None) -> str:
     """渲染邮件正文内嵌图片。"""
-    alt_text = html.escape(image.filename)
+    alt_text = html.escape(_chart_caption(image.filename))
     content_id = html.escape(image.content_id or image.filename, quote=True)
     symbol = _symbol_from_filename(image.filename)
     link = _interactive_chart_link(interactive_chart_url, symbol)
