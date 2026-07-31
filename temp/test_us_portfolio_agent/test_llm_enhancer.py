@@ -190,6 +190,10 @@ class TestLLMEnhancer(unittest.TestCase):
         self.assertIn("普通继续持有和低权重重点观察压缩为一行", payload["messages"][1]["content"])
         self.assertIn("重大负面事件”作为默认失效条件", payload["messages"][1]["content"])
         self.assertIn("不要把规则报告改写成日内交易", payload["messages"][1]["content"])
+        self.assertIn("动作标签、评分、风险位、失效条件和组合风险必须保持与原始报告一致", payload["messages"][1]["content"])
+        self.assertIn("增持候选默认使用降权或卖出释放的资金承接", payload["messages"][1]["content"])
+        self.assertIn("数据限制和新闻风险", payload["messages"][1]["content"])
+        self.assertIn("不得删除原始报告中的研究辅助免责声明", payload["messages"][1]["content"])
 
     def test_weekly_report_prompt_prioritizes_period_changes_and_next_week_review(self) -> None:
         """周报应优先呈现周期变化、下周复核事项和高权重标的。"""
