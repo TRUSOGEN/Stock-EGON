@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import os
 import time
+from pathlib import Path
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 from typing import Any, Callable
@@ -28,6 +29,7 @@ _DEFAULT_READ_TIMEOUT_SECONDS = 30
 _DEFAULT_MAX_TOKENS = 1600
 _MAX_TIMEOUT_ATTEMPTS = 2
 _RETRY_BACKOFF_SECONDS = 1
+_REPORT_REWRITE_PROMPT_PATH = Path(__file__).with_name("prompts") / "report_rewrite.md"
 
 
 @dataclass(frozen=True)
@@ -270,22 +272,11 @@ def _build_chat_completion_payload(
 ) -> dict[str, Any]:
     """构造 OpenAI-compatible chat completions 请求体。"""
     report_type = "周报" if "weekly" in str(report.get("module") or "") else "日报"
-    prompt = f"""你是一个谨慎的美股长期持仓复盘助理。请把下面的规则引擎{report_type}改写成适合邮件阅读的中文 Markdown。
-
-要求：
-- 先用 3 到 5 条短句说清楚 1 个月、1 个季度和 1 年视角下最重要的结论。
-- 对每只持仓说人话，解释为什么是增持候选、继续持有、重点观察或减持候选。
-- 每只股票使用 `### TICKER — 动作标签` 作为小标题，标题下面只写一个自然段，不要写项目符号列表。
-- 单票自然段顺序为：组合权重与盈亏状态、趋势/动量/新闻等依据、当前动作判断、进入区间/风险位/目标观察位、失效条件。
-- 保留关键价格区间、风险位和失效条件，但不要堆砌表格。
-- 不要把规则报告改写成日内交易、短线追涨或确定性收益建议。
-- 明确说明这只是研究辅助，不构成投资建议或交易指令。
-- 不要新增原报告没有支持的事实，不要编造新闻、价格或财务数据。
-- 只输出最终 Markdown 正文。
-
-原始报告：
-{markdown}
-"""
+    prompt = _REPORT_REWRITE_PROMPT_PATH.read_text(encoding="utf-8").format(
+        report_type=report_type,
+        report_instructions=_report_rewrite_instructions(report_type),
+        markdown=markdown,
+    )
     return {
         "model": model,
         "messages": [
@@ -299,6 +290,20 @@ def _build_chat_completion_payload(
         "max_tokens": max_tokens,
         "stream": True,
     }
+
+
+def _report_rewrite_instructions(report_type: str) -> str:
+    """返回与报告周期匹配的决策优先级写作要求。"""
+    if report_type == "日报":
+        return """日报输出顺序：
+- 先以 `## 今日优先复核` 列出最多三项优先复核事项，按风险与组合权重排序。
+- 只展开减持候选、增持候选、触及风险位或高权重重点观察；每项使用 `### TICKER — 动作标签`。
+- 普通继续持有和低权重重点观察压缩为一行，放入 `## 其余持仓`。
+- 价格区间必须说明其用途，例如风险位、重新评估区间或观察目标；只保留与当前动作有关的数字。"""
+    return """周报输出顺序：
+- 先按 1 个月、1 个季度和 1 年三个周期总结组合变化，并给出最多三项下周复核重点。
+- 只展开动作变化、风险上升或组合权重前 3 的标的；其余标的放入简短观察清单。
+- 价格区间必须说明其用途，并优先保留影响下周复核的风险位与失效条件。"""
 
 
 def _is_deepseek_api(base_url: str) -> bool:

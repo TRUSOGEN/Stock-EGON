@@ -173,9 +173,9 @@ class TestEmailNotifications(unittest.TestCase):
 
         html = message.get_body(preferencelist=("html",)).get_content()
         spex_heading = html.index("SPEX — 增持候选")
-        spex_image = html.index("SPEX-price-volume.png")
+        spex_image = html.index("SPEX 近 3 个月价格与成交量")
         nvda_heading = html.index("NVDA — 继续持有")
-        nvda_image = html.index("NVDA-price-volume.png")
+        nvda_image = html.index("NVDA 近 3 个月价格与成交量")
         self.assertLess(spex_heading, spex_image)
         self.assertLess(spex_image, nvda_heading)
         self.assertLess(nvda_heading, nvda_image)
@@ -202,7 +202,8 @@ class TestEmailNotifications(unittest.TestCase):
         )
 
         html = message.get_body(preferencelist=("html",)).get_content()
-        image_index = html.index("NVDA-price-volume.png")
+        image_index = html.index("NVDA 近 3 个月价格与成交量")
+        self.assertIn(">NVDA 近 3 个月价格与成交量</figcaption>", html)
         link_index = html.index("https://example.test/stock-chart.html?symbol=NVDA")
         self.assertLess(image_index, link_index)
         self.assertIn("打开交互图", html)

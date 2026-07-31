@@ -185,9 +185,48 @@ class TestLLMEnhancer(unittest.TestCase):
         self.assertIn("原始报告", payload["messages"][1]["content"])
         self.assertIn("美股长期持仓复盘助理", payload["messages"][1]["content"])
         self.assertIn("1 个月、1 个季度和 1 年视角", payload["messages"][1]["content"])
-        self.assertIn("每只股票使用 `### TICKER — 动作标签`", payload["messages"][1]["content"])
-        self.assertIn("标题下面只写一个自然段", payload["messages"][1]["content"])
+        self.assertIn("最多三项优先复核事项", payload["messages"][1]["content"])
+        self.assertIn("只展开减持候选、增持候选、触及风险位或高权重重点观察", payload["messages"][1]["content"])
+        self.assertIn("普通继续持有和低权重重点观察压缩为一行", payload["messages"][1]["content"])
+        self.assertIn("重大负面事件”作为默认失效条件", payload["messages"][1]["content"])
         self.assertIn("不要把规则报告改写成日内交易", payload["messages"][1]["content"])
+        self.assertIn("动作标签、评分、风险位、失效条件和组合风险必须保持与原始报告一致", payload["messages"][1]["content"])
+        self.assertIn("增持候选默认使用降权或卖出释放的资金承接", payload["messages"][1]["content"])
+        self.assertIn("数据限制和新闻风险", payload["messages"][1]["content"])
+        self.assertIn("不得删除原始报告中的研究辅助免责声明", payload["messages"][1]["content"])
+
+    def test_weekly_report_prompt_prioritizes_period_changes_and_next_week_review(self) -> None:
+        """周报应优先呈现周期变化、下周复核事项和高权重标的。"""
+        calls = []
+
+        def fake_post(url: str, **kwargs: object) -> FakeLLMResponse:
+            calls.append((url, kwargs))
+            return FakeLLMResponse(
+                200,
+                {"choices": [{"message": {"content": "# 周报"}}]},
+            )
+
+        with patch.dict(
+            "os.environ",
+            {
+                "LLM_API_KEY": "secret",
+                "LLM_BASE_URL": "https://api.example.com/v1",
+                "LLM_MODEL": "provider/model",
+            },
+            clear=True,
+        ):
+            result = enhance_report_markdown(
+                "# 原始周报",
+                report={"module": "us_weekly_review"},
+                post=fake_post,
+            )
+
+        self.assertTrue(result.used)
+        prompt = calls[0][1]["json"]["messages"][1]["content"]
+        self.assertIn("周报输出顺序", prompt)
+        self.assertIn("最多三项下周复核重点", prompt)
+        self.assertIn("组合权重前 3", prompt)
+        self.assertNotIn("## 今日优先复核", prompt)
 
     def test_deepseek_request_disables_thinking_to_preserve_email_body_tokens(self) -> None:
         """DeepSeek 邮件改写应关闭思考模式，避免推理流挤占最终正文。"""
