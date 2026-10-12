@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import asdict
 import json
+import os
 
 from a_stock_quant.indicators import compute_indicators, safe_float
 from a_stock_quant.output import make_result
@@ -17,6 +18,7 @@ from .quality import assess_history_quality, normalize_data_quality
 from .reports import render_daily_report, render_weekly_review
 from .risk import assess_portfolio_risk
 from .models import Portfolio
+from .research_context import build_research_contexts, collect_social_opinions
 
 
 def run_report(
@@ -40,6 +42,13 @@ def run_report(
     except Exception as exc:  # noqa: BLE001
         news = {symbol: [] for symbol in symbols}
         news_warnings.append(f"新闻源调用失败，已跳过新闻增强: {exc}")
+    research_contexts, research_warnings = build_research_contexts(provider, symbols)
+    try:
+        social_contexts, social_warnings = collect_social_opinions(symbols, env=os.environ)
+    except Exception as exc:
+        social_contexts = {}
+        social_warnings = [f"社交观点不可用（{type(exc).__name__}），未用于本次分析。"]
+    news_warnings.extend(research_warnings + social_warnings)
     scored_actions = []
     evidence = {}
     for position in view.positions:
@@ -69,6 +78,8 @@ def run_report(
         scored_actions.append((score, action))
         latest = compute_indicators(history).iloc[-1]
         evidence[position.symbol] = {
+            **research_contexts[position.symbol],
+            "social": social_contexts.get(position.symbol, {"id": f"{position.symbol}:social", "status": "fetch_failed", "posts": [], "leads": []}),
             "quote": {"id": f"{position.symbol}:quote", **asdict(snapshots[position.symbol])},
             "position": {"id": f"{position.symbol}:position", **asdict(position)},
             "technical": {
@@ -91,6 +102,7 @@ def run_report(
     market_notes.extend(news_warnings)
     market_notes.extend(_format_news_notes(news))
     market_notes.extend(warning for quote in snapshots.values() for warning in quote.warnings)
+    market_notes.append("分析采用六维证据框架：市场环境、经营与估值、事件催化、价格行为、指定博主观点、组合风险；观点不直接改变规则标签。")
     market_notes.append("常规盘已收盘价格；盘前、盘后与隔夜价格不计入组合估值。技术区间是历史统计参考，不是预测目标价。")
     if report_type == "weekly":
         report = render_weekly_review(

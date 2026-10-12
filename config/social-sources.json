@@ -1,0 +1,73 @@
+{
+  "authors": [
+    {
+      "id": "xiaohongshu:5ae9be974eacab11821092a6",
+      "platform": "xiaohongshu",
+      "name": "我是NG哥",
+      "profile_url": "https://www.xiaohongshu.com/user/profile/5ae9be974eacab11821092a6",
+      "priority": "user_selected",
+      "followers_display_observed": "3.2万",
+      "profile_observed_on": "2026-10-12",
+      "perspective": "本人简介表达长期看多特斯拉和 AI；其立场应作为观点偏向记录，不作为收益或准确率证明。"
+    },
+    {
+      "id": "x:KobeissiLetter",
+      "platform": "x",
+      "name": "The Kobeissi Letter",
+      "handle": "KobeissiLetter",
+      "profile_url": "https://x.com/KobeissiLetter",
+      "priority": "selected_for_macro_commentary",
+      "followers_display_observed": "2.6M",
+      "profile_observed_on": "2026-10-12",
+      "perspective": "宏观与资本市场评论；粉丝数只是观察时的关注度，不证明预测能力。"
+    },
+    {
+      "id": "x:charliebilello",
+      "platform": "x",
+      "name": "Charlie Bilello",
+      "handle": "charliebilello",
+      "profile_url": "https://x.com/charliebilello",
+      "priority": "selected_for_market_data_commentary",
+      "followers_display_observed": "872K",
+      "profile_observed_on": "2026-10-12",
+      "perspective": "市场数据与长期配置评论；与其他作者观点重合时不能当成独立事实证据重复计数。"
+    }
+  ],
+  "posts": [
+    {
+      "author_id": "xiaohongshu:5ae9be974eacab11821092a6",
+      "url": "https://www.xiaohongshu.com/explore/6ac4b6bc000000001403b0eb",
+      "published_at": null,
+      "published_label": "5天前",
+      "observed_at": "2026-10-12T06:58:00Z",
+      "symbols": [
+        "SPCX",
+        "TSLA"
+      ],
+      "content_kind": "browser_read_summary",
+      "text": "作者自述持有特斯拉和 SpaceX，近期上涨令其卖出的备兑看涨期权被突破；他将主要影响解释为上行收益受限，并讨论展期。其此前在上市热炒阶段主张冷静，回落后才参与。这是作者的自述与策略观点，未核验其成交或收益；备兑期权情境不能直接套到普通正股持仓。"
+    },
+    {
+      "author_id": "x:KobeissiLetter",
+      "url": "https://x.com/KobeissiLetter/status/2109396622945681910",
+      "published_at": "2026-10-11T21:32:00Z",
+      "observed_at": "2026-10-12T06:58:00Z",
+      "symbols": [
+        "*"
+      ],
+      "content_kind": "browser_read_summary",
+      "text": "作者认为大盘指数接近高位，但许多个股距离各自历史高点仍远，上涨由少数权重股支撑。这是市场广度与集中度警示；原帖统计口径和底层数据未独立复算，不能直接推出特定股票即将下跌。"
+    },
+    {
+      "author_id": "x:charliebilello",
+      "url": "https://x.com/charliebilello/status/2109382278660911342",
+      "published_at": "2026-10-11T20:35:00Z",
+      "observed_at": "2026-10-12T06:58:00Z",
+      "symbols": [
+        "*"
+      ],
+      "content_kind": "browser_read_summary",
+      "text": "作者用平均个股相对市值加权指数的弱势，说明少数超大市值股票的主导地位。这可用于提出指数持仓与科技个股是否重复暴露的问题；原帖图表未独立重算，与市场广度警示属于重合主题，不是额外的独立事实核验。"
+    }
+  ]
+}

@@ -72,6 +72,8 @@ jobs:
           TAVILY_API_KEYS: ${{ secrets.TAVILY_API_KEYS }}
           BRAVE_API_KEY: ${{ secrets.BRAVE_API_KEY }}
           BRAVE_API_KEYS: ${{ secrets.BRAVE_API_KEYS }}
+          SOCIAL_OPINIONS_JSON: ${{ secrets.SOCIAL_OPINIONS_JSON }}
+          SOCIAL_SEARCH_ENABLED: ${{ vars.SOCIAL_SEARCH_ENABLED || 'true' }}
           NEWS_PROVIDER_ORDER: ${{ secrets.NEWS_PROVIDER_ORDER || vars.NEWS_PROVIDER_ORDER }}
           NEWS_MAX_ITEMS_PER_SYMBOL: ${{ secrets.NEWS_MAX_ITEMS_PER_SYMBOL || vars.NEWS_MAX_ITEMS_PER_SYMBOL }}
           LLM_PROVIDER: ${{ secrets.LLM_PROVIDER || vars.LLM_PROVIDER }}
@@ -116,6 +118,8 @@ jobs:
           TAVILY_API_KEYS: ${{ secrets.TAVILY_API_KEYS }}
           BRAVE_API_KEY: ${{ secrets.BRAVE_API_KEY }}
           BRAVE_API_KEYS: ${{ secrets.BRAVE_API_KEYS }}
+          SOCIAL_OPINIONS_JSON: ${{ secrets.SOCIAL_OPINIONS_JSON }}
+          SOCIAL_SEARCH_ENABLED: ${{ vars.SOCIAL_SEARCH_ENABLED || 'true' }}
           NEWS_PROVIDER_ORDER: ${{ secrets.NEWS_PROVIDER_ORDER || vars.NEWS_PROVIDER_ORDER }}
           NEWS_MAX_ITEMS_PER_SYMBOL: ${{ secrets.NEWS_MAX_ITEMS_PER_SYMBOL || vars.NEWS_MAX_ITEMS_PER_SYMBOL }}
           LLM_PROVIDER: ${{ secrets.LLM_PROVIDER || vars.LLM_PROVIDER }}

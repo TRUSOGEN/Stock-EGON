@@ -20,7 +20,13 @@ Stock-EGON 是一个股票研究辅助项目，当前包含两部分：基于 AK
 
 别人要复用时，应 fork 仓库到自己的 GitHub 账号，并在自己的仓库 Secrets 里配置自己的 `PORTFOLIO_JSON`、邮箱 SMTP、新闻源 key 和可选 LLM key。真实持仓、邮箱授权码、新闻源 key 和 LLM key 都不应该写进代码。
 
-GitHub Actions 不能复用你本机的 Codex 登录态。需要 LLM 增强时，火山方舟应配置 `ARK_API_KEY` 和 `ARK_MODEL`，DeepSeek 官方接口应配置 `DEEPSEEK_API_KEY`，其他 OpenAI-compatible 服务可配置 `LLM_API_KEY`、`LLM_BASE_URL`、`LLM_MODEL`。也兼容 `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`OPENAI_MODEL` 这类常见命名。LLM 使用流式 Chat Completions，因此 30 秒读取上限用于判断流是否中断，不限制整段报告的生成总时长；可通过 `LLM_TIMEOUT_SECONDS` 调整。单次分析默认最多生成 8192 tokens，可通过 `LLM_MAX_TOKENS` 调整。连接或首次响应超时时会等待 1 秒后重试一次。LLM 外部调用最终失败时，邮件会在正文顶部写明失败原因，并继续发送规则版报告。详细说明见 [docs/llm-config-guide.md](docs/llm-config-guide.md)。
+GitHub Actions 不能复用你本机的 Codex 登录态。需要 LLM 增强时，火山方舟应配置 `ARK_API_KEY` 和 `ARK_MODEL`，DeepSeek 官方接口应配置 `DEEPSEEK_API_KEY`，其他 OpenAI-compatible 服务可配置 `LLM_API_KEY`、`LLM_BASE_URL`、`LLM_MODEL`。也兼容 `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`OPENAI_MODEL` 这类常见命名。LLM 使用流式 Chat Completions，因此 30 秒读取上限用于判断流是否中断，不限制整段报告的生成总时长；可通过 `LLM_TIMEOUT_SECONDS` 调整。单次分析默认最多生成 16384 tokens，可通过 `LLM_MAX_TOKENS` 调整。连接或首次响应超时时会等待 1 秒后重试一次。LLM 外部调用最终失败时，邮件会在正文顶部写明失败原因，并继续发送规则版报告。详细说明见 [docs/llm-config-guide.md](docs/llm-config-guide.md)。
+
+## 分析框架与博主观点
+
+新版采用六维证据研究框架：市场环境、经营与估值、事件催化、价格行为、指定博主观点、组合风险。DeepSeek 必须逐条说明本次原帖是支持、部分支持、不支持还是待核实，并保留作者与原帖链接。规则分数仍独立保留，未回测标签不等于预测能力。
+
+默认参考名单见 `config/social-sources.json`，包含用户指定的小红书账号与两位 X 市场评论作者。已读摘要七天后退出近期观点；云端通过现有 SerpAPI 搜索新线索，不能保证完整读取平台新帖。自定义名单及原帖可使用 Secret `SOCIAL_OPINIONS_JSON`；关闭额外社交搜索使用 Variable `SOCIAL_SEARCH_ENABLED=false`。完整证据和时效边界见 [方法论](docs/methodology.md) 与 [原理文档](docs/principle.md)。
 
 ## 行情与送达校验
 
@@ -67,7 +73,7 @@ GitHub Actions 不能复用你本机的 Codex 登录态。需要 LLM 增强时�
 | `LLM_API_KEY` | 通用 OpenAI-compatible API key | LLM 可选 | Secrets |
 | `LLM_BASE_URL` | 通用 OpenAI-compatible base URL | LLM 可选 | Secrets 或 Variables |
 | `LLM_MODEL` | 通用模型名，例如 `deepseek-flash` | LLM 可选 | Secrets 或 Variables |
-| `LLM_MAX_TOKENS` | 单次 LLM 改写的最大输出 tokens，默认 `8192` | LLM 可选 | Secrets 或 Variables |
+| `LLM_MAX_TOKENS` | 单次 LLM 改写的最大输出 tokens，默认 `16384` | LLM 可选 | Secrets 或 Variables |
 | `OPENAI_API_KEY` | 兼容 OpenAI 命名的 API key | LLM 可选 | Secrets |
 | `OPENAI_BASE_URL` | 兼容 OpenAI 命名的 base URL | LLM 可选 | Secrets 或 Variables |
 | `OPENAI_MODEL` | 兼容 OpenAI 命名的模型名 | LLM 可选 | Secrets 或 Variables |

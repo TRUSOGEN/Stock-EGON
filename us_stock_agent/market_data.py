@@ -71,6 +71,29 @@ class YFinanceProvider:
             )
         return snapshots
 
+
+    def fetch_company_facts(self, symbol: str) -> dict:
+        """获取带报告期的 Yahoo 财务聚合字段，不视为 SEC 原始披露或历史快照。"""
+        info = self.yf.Ticker(symbol).info
+        if str(info.get("symbol", "")).upper() != symbol.upper():
+            raise ValueError(f"{symbol} 基本面代码不匹配。")
+        fields = ("marketCap", "trailingPE", "forwardPE", "priceToSalesTrailing12Months", "priceToBook",
+                  "revenueGrowth", "earningsGrowth", "operatingMargins", "profitMargins", "freeCashflow",
+                  "operatingCashflow", "totalCash", "totalDebt")
+        values = {}
+        for field in fields:
+            raw = info.get(field)
+            values[field] = round(float(raw), 6) if isinstance(raw, (int, float)) and isfinite(raw) else None
+        report_period = info.get("mostRecentQuarter")
+        return {"status": "available", "source": "Yahoo Finance / yfinance Ticker.info",
+                "url": f"https://finance.yahoo.com/quote/{symbol}/key-statistics/",
+                "fetched_at": datetime.now(timezone.utc).isoformat(),
+                "report_period_end": pd.Timestamp(report_period, unit="s", tz="UTC").date().isoformat() if report_period else None,
+                "instrument_type": info.get("quoteType"), "sector": info.get("sector"),
+                "industry": info.get("industry"), "currency": info.get("currency"), "metrics": values,
+                "quality": "aggregator_not_verified_filing", "point_in_time": False,
+                "limitations": "缺失字段保持 null；ETF 不使用公司财务倍数；预测估值是聚合预期，不是确定目标价。"}
+
     def fetch_history(self, symbol: str, *, period: str = "6mo") -> pd.DataFrame:
         """标准化非股息复权日线，并排除尚未收盘的当日以及代码复用前历史。"""
         if not hasattr(self, "_histories"):

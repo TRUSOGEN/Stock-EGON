@@ -180,7 +180,7 @@ class TestLLMEnhancer(unittest.TestCase):
         payload = calls[0][1]["json"]
         self.assertEqual(payload["model"], "provider/model")
         self.assertTrue(payload["stream"])
-        self.assertEqual(payload["max_tokens"], 8192)
+        self.assertEqual(payload["max_tokens"], 16384)
         self.assertTrue(calls[0][1]["stream"])
         self.assertIn("原始报告", payload["messages"][1]["content"])
         self.assertIn("美股长期持仓复盘助理", payload["messages"][1]["content"])

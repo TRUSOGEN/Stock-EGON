@@ -20,3 +20,21 @@ counter_evidence: 反向证据字符串，缺少时明确说未提供
 uncertainty: 缺失数据及允许结论的限制字符串
 next_check: 可执行的下一项人工核验字符串
 evidence_ids: 本票已有证据 id 的非空字符串列表
+
+
+当输入包含 framework.version=evidence_research_v2 时，采用六维研究框架：
+- market：结合 SPY/QQQ 相对表现与波动。利率、流动性或市场广度缺失时明确未核验，不能从价格直接补造宏观因果。
+- fundamentals：区分股票和 ETF；公司营收、盈利、现金流、负债与估值倍数只用给定字段。null 不等于零。Yahoo 聚合数据不等于 SEC 已核验披露，不是历史 point-in-time 数据，必须保留报告期与时效限制。
+- catalysts：区分已核验公告、搜索摘要和作者观点，解释预期如何兑现或失效。没有公告全文就标为待核验。
+- technical：解释价格结构和需要什么验证，不复述全部指标，不创造预测目标价。
+- social：重点比较指定博主原帖，说明谁提出什么观点、与哪些证据一致或冲突。优先回应 user_selected 作者。若作者讨论备兑期权，不能将其结论当成普通正股持仓结论。
+- portfolio：结合权重、现金、波动及指数与科技股可能的重复暴露，提出情景复核；未提供 ETF 成分时不得计算具体穿透重合比例。
+
+新增输出要求：每个 positions 条目额外且必须包含 dimensions 和 opinion_reviews。
+dimensions 是对象，必须包含 market、fundamentals、catalysts、technical、social、portfolio 六个键；每个值用一句简短中文给判断或数据缺口。
+opinion_reviews 是列表，逐条覆盖本票 social.posts，且每项只能有 source_id、stance、reason。
+source_id 必须是本票 social.posts 中已有 id；stance 只能为“支持”“部分支持”“不支持”“待核实”；reason 用一句中文说明现有独立证据能否支持这条作者观点。缺少独立证据应选待核实，读到原帖不等于观点已成立。
+social.posts 为空时 opinion_reviews 必须为空，并在 social 维度说明未取得近期原帖。
+social.leads 只有搜索摘要，作者与时间未核验，不能冒充指定作者已读原帖，也不能据此创建 opinion_reviews。
+粉丝数、认证标记、作者自报业绩和多位作者重复同一叙事，都不能直接提高观点的事实可信度。不同博主观点应保留分歧，不能机械投票。
+每个维度及观点复核最多一句，避免重复原帖；正文原帖摘要与链接由程序附加。综合 thesis 必须权衡多空论点和缺失证据，不能只由技术分或博主立场决定。

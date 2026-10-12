@@ -67,6 +67,10 @@ def main() -> int:
         }
         receipt = {key: send_result.get(key) for key in ("sent", "skipped", "reason", "llm_enhancement", "inline_chart_images")}
         receipt["data_time"] = report.get("data_time")
+        evidence = report.get("data", {}).get("evidence", {})
+        receipt["analysis_frameworks"] = sorted({value.get("framework", {}).get("version", "legacy") for value in evidence.values()})
+        receipt["social_original_source_count"] = len({post["url"] for value in evidence.values() for post in value.get("social", {}).get("posts", [])})
+        receipt["social_search_lead_count"] = len({post["url"] for value in evidence.values() for post in value.get("social", {}).get("leads", [])})
         if args.result_file:
             Path(args.result_file).write_text(dumps_json(receipt), encoding="utf-8")
         print(
