@@ -17,13 +17,15 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import pandas as pd
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from a_stock_quant.output import dumps_json, make_error_result, make_result
-from us_stock_agent.charts import build_symbol_chart_images
+from us_stock_agent.charts import build_symbol_chart_images, render_symbol_price_volume_png
 from us_stock_agent.llm_enhancer import enhance_report_markdown_for_email
 from us_stock_agent.market_data import YFinanceProvider
-from us_stock_agent.notifications import _parse_bool, send_email_markdown
+from us_stock_agent.notifications import EmailAttachment, _parse_bool, send_email_markdown
 
 
 def parse_args() -> argparse.Namespace:
@@ -31,6 +33,8 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="通过 SMTP 邮件发送美股报告")
     parser.add_argument("--report-file", required=True, help="日报或周报 JSON 文件路径")
     parser.add_argument("--subject", help="邮件标题；默认根据报告类型生成")
+    parser.add_argument("--require-sent", action="store_true", help="未发送时以非零状态退出，供生产工作流使用")
+    parser.add_argument("--result-file", help="保存不含持仓正文及收件地址的发送回执")
     return parser.parse_args()
 
 
@@ -41,9 +45,16 @@ def main() -> int:
         report = _load_report(Path(args.report_file))
         markdown = _extract_markdown(report)
         llm_result = enhance_report_markdown_for_email(markdown, report=report)
-        chart_images = _build_chart_images(report)
+        chart_error = None
+        body = llm_result.markdown
+        try:
+            chart_images = _build_chart_images(report)
+        except Exception as exc:
+            chart_images = []
+            chart_error = type(exc).__name__
+            body = f"> 图表生成失败（{chart_error}），已保留本次行情与分析正文。\n\n{body}"
         send_result = send_email_markdown(
-            llm_result.markdown,
+            body,
             subject=args.subject or _default_subject(report),
             attachments=chart_images,
         )
@@ -52,12 +63,17 @@ def main() -> int:
             "enabled": bool(chart_images),
             "count": len(chart_images),
             "filenames": [item.filename for item in chart_images],
+            "error": chart_error,
         }
+        receipt = {key: send_result.get(key) for key in ("sent", "skipped", "reason", "llm_enhancement", "inline_chart_images")}
+        receipt["data_time"] = report.get("data_time")
+        if args.result_file:
+            Path(args.result_file).write_text(dumps_json(receipt), encoding="utf-8")
         print(
             dumps_json(
                 make_result(
                     module="send_email_report",
-                    data=send_result,
+                    data=receipt,
                     data_time=report.get("data_time"),
                     source_api="smtp_email",
                     warnings=["邮件报告是研究辅助，不构成投资建议或交易指令。"],
@@ -65,7 +81,7 @@ def main() -> int:
             )
         )
         if send_result.get("skipped"):
-            return 0
+            return 2 if args.require_sent else 0
         return 0 if send_result.get("sent") else 2
     except Exception as exc:  # noqa: BLE001
         print(
@@ -118,6 +134,11 @@ def _build_chart_images(report: dict[str, Any]):
     symbols = _extract_symbols(report)
     if not symbols:
         raise ValueError("已启用 EMAIL_INCLUDE_CHARTS，但报告里没有可用 symbols。")
+    history = report.get("data", {}).get("chart_history")
+    if isinstance(history, dict):
+        return [EmailAttachment(filename=f"{symbol}-price-volume.png", content_type="image/png",
+                                data=render_symbol_price_volume_png(symbol, pd.DataFrame(history[symbol]).tail(63)))
+                for symbol in symbols]
     provider = YFinanceProvider()
     return build_symbol_chart_images(symbols, market_provider=provider)
 

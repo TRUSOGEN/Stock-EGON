@@ -1,9 +1,7 @@
 """美股报告的可选 LLM 增强层。
 
-本模块把已经生成的规则引擎 Markdown 报告交给 OpenAI-compatible chat
-completions 接口进行二次改写。它不参与行情抓取、动作评分和风控判断，只负责把
-既有结论转换成更易读的投研助理口吻。底层增强函数保持严格失败；邮件发送入口使用
-显式 fallback，把 LLM 外部调用失败写入正文后继续发送规则版报告。
+本模块优先基于结构化证据生成可校验的分析，保留程序报告原文。旧 JSON 缺少证据包
+时兼容既有改写路径；外部服务失败时显式降级，不阻断核心邮件。
 """
 
 from __future__ import annotations
@@ -16,6 +14,8 @@ from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 from typing import Any, Callable
 
+from .evidence_analysis import build_analysis_payload, validate_and_render_analysis
+
 try:
     import requests
 except ModuleNotFoundError:  # pragma: no cover - 仅在极简测试环境触发
@@ -26,7 +26,7 @@ PostClient = Callable[..., Any]
 
 _CONNECT_TIMEOUT_SECONDS = 10
 _DEFAULT_READ_TIMEOUT_SECONDS = 30
-_DEFAULT_MAX_TOKENS = 1600
+_DEFAULT_MAX_TOKENS = 8192
 _MAX_TIMEOUT_ATTEMPTS = 2
 _RETRY_BACKOFF_SECONDS = 1
 _REPORT_REWRITE_PROMPT_PATH = Path(__file__).with_name("prompts") / "report_rewrite.md"
@@ -90,7 +90,7 @@ def load_llm_config_from_env() -> LLMConfig:
     model = _read_env("LLM_MODEL") or _read_env("OPENAI_MODEL") or _read_env("ARK_MODEL") or _read_env("DEEPSEEK_MODEL")
     if provider == "deepseek":
         base_url = base_url or "https://api.deepseek.com"
-        model = model or "deepseek-chat"
+        model = model or "deepseek-flash"
     elif provider == "ark":
         base_url = base_url or "https://ark.cn-beijing.volces.com/api/v3"
         if not model:
@@ -135,14 +135,17 @@ def enhance_report_markdown(
         client = requests.post
     else:
         raise RuntimeError("当前环境缺少 requests，无法调用 LLM 增强接口。")
-    payload = _build_chat_completion_payload(
+    evidence = report.get("data", {}).get("evidence")
+    payload = build_analysis_payload(evidence, model=active_config.model, max_tokens=active_config.max_tokens) if evidence else _build_chat_completion_payload(
         markdown,
         report=report,
         model=active_config.model,
         max_tokens=active_config.max_tokens,
     )
     if _is_deepseek_api(active_config.base_url):
-        payload["thinking"] = {"type": "disabled"}
+        payload["thinking"] = {"type": "enabled" if evidence else "disabled"}
+        if evidence:
+            payload["reasoning_effort"] = "high"
     enhanced_markdown = _request_streaming_chat_completion_with_timeout_retry(
         client,
         url=_chat_completions_url(active_config.base_url),
@@ -150,6 +153,9 @@ def enhance_report_markdown(
         payload=payload,
         read_timeout=active_config.timeout,
     )
+    if evidence:
+        analysis = validate_and_render_analysis(enhanced_markdown, evidence)
+        enhanced_markdown = markdown.rstrip() + "\n\n" + analysis
     return LLMEnhanceResult(
         markdown=enhanced_markdown,
         used=True,
@@ -223,7 +229,12 @@ def _request_streaming_chat_completion_with_timeout_retry(
             status_code = getattr(response, "status_code", None)
             if status_code is None or int(status_code) < 200 or int(status_code) >= 300:
                 raise ValueError(f"LLM 增强请求失败，HTTP 状态码: {status_code}。")
-            return _extract_streaming_chat_completion_content(response)
+            try:
+                return _extract_streaming_chat_completion_content(response)
+            finally:
+                close = getattr(response, "close", None)
+                if callable(close):
+                    close()
         except Exception as exc:
             if not _is_retryable_timeout(exc) or attempt == _MAX_TIMEOUT_ATTEMPTS - 1:
                 raise
@@ -308,7 +319,7 @@ def _report_rewrite_instructions(report_type: str) -> str:
 
 def _is_deepseek_api(base_url: str) -> bool:
     """判断当前请求是否发往 DeepSeek 官方 OpenAI-compatible API。"""
-    return base_url.rstrip("/").lower() == "https://api.deepseek.com"
+    return base_url.rstrip("/").lower() in {"https://api.deepseek.com", "https://api.deepseek.com/v1"}
 
 
 def _extract_streaming_chat_completion_content(response: Any) -> str:
@@ -338,6 +349,8 @@ def _extract_streaming_chat_completion_content(response: Any) -> str:
         delta = first_choice.get("delta")
         if not isinstance(delta, dict):
             raise ValueError("LLM 流式响应 choices[0].delta 必须是对象。")
+        if first_choice.get("finish_reason") in {"length", "content_filter"}:
+            raise ValueError("LLM 输出被截断或过滤，不能作为完整分析发送。")
         content = delta.get("content")
         if content is None:
             continue

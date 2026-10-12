@@ -36,6 +36,10 @@ class MarketSnapshot:
     name: str | None = None
     currency: str = "USD"
     data_time: str | None = None
+    source: str = "unspecified"
+    price_basis: str = "unspecified"
+    quality: str = "unknown"
+    warnings: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

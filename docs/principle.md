@@ -4,7 +4,7 @@
 
 本工具用于把公开行情数据转成结构化研究结果，帮助快速完成市场概览、候选筛选、个股技术诊断、经典策略回测、美股长期持仓日报和每周复盘。工具输出是研究参考，不是投资建议、交易指令或合规结论。
 
-当前美股持仓日报和周报是规则引擎，不调用 Codex、OpenAI 或其他 LLM API。后续如果接入 LLM 问答，应作为独立 provider 和独立 secret 进入系统，不能假设使用者拥有当前开发者的 Codex 登录态。
+美股持仓的价格、盈亏、评分和动作由确定性 Python 计算。已接入可选 LLM 证据分析层，通过运行时 API key 调用，不使用本机 Codex 登录态。模型分析不能替换程序事实。
 
 ## 数据流
 
@@ -33,7 +33,9 @@ flowchart LR
     G --> H["Decision Engine"]
     F --> H
     H --> I["Daily Report / Weekly Review"]
-    I --> J["Notification Adapter"]
+    I --> K["Evidence JSON + cached chart history"]
+    K --> L["LLM analysis + citation and number validation"]
+    L --> J["Notification Adapter + delivery receipt"]
 ```
 
 真实持仓、新闻源 token、SMTP 密码或邮箱授权码、LLM API key 和通知 webhook 应通过 GitHub Secrets、Codex automation prompt 或运行时环境变量注入，不应写入仓库。`config/portfolio.example.json` 和文档示例只能使用假持仓。
@@ -68,7 +70,7 @@ flowchart LR
 
 组合风险必须在日报和周报中展示，至少包含单票集中度、现金不足和持仓数量。默认单票集中度阈值为 balanced 30%、aggressive 38%、conservative 22%；现金不足阈值为 balanced/conservative 5%、aggressive 3%。这些阈值用于风险提示，不用于自动交易。
 
-通知层只发送已经生成的报告，不参与评分、风控和数据抓取。默认 workflow 使用 SMTP 邮件推送；QQ 邮箱可通过 `EMAIL_ADDRESS` 和 `EMAIL_AUTH_CODE` 使用内置默认值，其他邮箱使用完整 SMTP 配置。GitHub 的 schedule 是首层触发器，外部 scheduler 可以使用 `workflow_dispatch` 和 `dedupe=true` 作为补发层；该路径必须按北京时间当天 marker 去重，普通人工 `workflow_dispatch` 保持不去重以支持显式重发。LLM 增强层位于邮件发送前，只能基于规则报告改写文字，不得改变底层评分、风险位和动作标签；未配置 key 时跳过，配置后必须用流式 Chat Completions 接收完整 SSE 增量并在 `[DONE]` 后使用结果，连接上限为 10 秒，连续数据块间隔默认最多为 30 秒，单次输出默认最多为 1600 tokens，分别可通过 `LLM_TIMEOUT_SECONDS` 和 `LLM_MAX_TOKENS` 调整。连接或首次响应超时会等待 1 秒后重试一次；流中断或最终外部调用失败时，邮件正文顶部必须写明失败原因，并继续发送规则版报告。邮件交互图链接只携带单个 ticker，并打开公开行情页面，不应把完整持仓列表、持仓数量、成本价或报告 JSON 发布到 GitHub Pages。企业微信群机器人 webhook 只作为可选保留通道。交互式微信问答需要独立的消息接收服务、鉴权、审计和 agent API 调用链路。
+通知层只发送已经生成的报告，不参与评分、风控和数据抓取。默认 workflow 使用 SMTP 邮件推送；QQ 邮箱可通过 `EMAIL_ADDRESS` 和 `EMAIL_AUTH_CODE` 使用内置默认值，其他邮箱使用完整 SMTP 配置。GitHub 的 schedule 是首层触发器，外部 scheduler 可以使用 `workflow_dispatch` 和 `dedupe=true` 作为补发层；该路径必须按北京时间当天 marker 去重，普通人工 `workflow_dispatch` 保持不去重以支持显式重发。LLM 增强层位于邮件发送前，读取结构化证据并追加带引用的推断、反向证据和核验项，不得替换原始正文或改变底层评分、风险位和动作标签；未配置 key 时跳过，配置后必须用流式 Chat Completions 接收完整 SSE 增量并在 `[DONE]` 后使用结果，连接上限为 10 秒，连续数据块间隔默认最多为 30 秒，单次输出默认最多为 8192 tokens，分别可通过 `LLM_TIMEOUT_SECONDS` 和 `LLM_MAX_TOKENS` 调整。连接或首次响应超时会等待 1 秒后重试一次；流中断或最终外部调用失败时，邮件正文顶部必须写明失败原因，并继续发送规则版报告。邮件交互图链接只携带单个 ticker，并打开公开行情页面，不应把完整持仓列表、持仓数量、成本价或报告 JSON 发布到 GitHub Pages。企业微信群机器人 webhook 只作为可选保留通道。交互式微信问答需要独立的消息接收服务、鉴权、审计和 agent API 调用链路。
 
 邮件增强的内容层按决策优先级组织信息：日报先呈现按风险和组合权重排序的复核事项，周报先呈现跨周期变化和下周复核事项，普通持仓压缩展示；静态图只使用可读图注，附件文件名不得成为读者可见正文。
 
@@ -83,3 +85,13 @@ flowchart LR
 AKShare 是免费开源数据接口库，但数据来自公开数据源，存在延迟、接口变动、字段变化、源站限流和授权边界问题。任何用于真实交易、对外披露、合规审查或商业服务的场景，都需要替换为有明确授权和服务保障的数据源。
 
 yfinance 使用 Yahoo Finance 公开数据，适合个人研究和复盘。若要长期定时、批量运行或提高稳定性，应接入付费新闻源和授权行情源。SpaceX 等私营公司没有公开 ticker，报告只能覆盖新闻、融资、发射、Starlink、监管和相关上市公司影响，不应生成公开股价或技术指标。
+
+## 行情与证据契约（2026-10-12 修订）
+
+此修订替代此前快照与图表分别取数、LLM 全文改写的默认链路。`MarketSnapshot` 新增 `source`、`price_basis`、`quality`、`warnings`，`data_time` 为已结束常规盘的交易所收盘时间。日线使用 `auto_adjust=False`（不做股息复权，Yahoo Close 仍做拆股调整），排除未收盘日线与 `firstTradeDate` 前历史，并验证 NYSE 交易日历、代码、币种、有效 OHLC 和同交易日报价一致性。该一致性来自同一 Yahoo 源，不代表独立双源核验。
+
+报告 JSON 的 `data.evidence` 包含逐票 `quote`、`position`、`technical`、`rules` 与 `news`，每项有本票唯一 ID。`data.chart_history` 保存本次标准日线；发信阶段从中截取最近 63 根日线绘图。新闻只作为搜索线索，引用 URL 保留，缺少全文核验时不能写成已确认事件。单源或单票新闻失败保留其他结果并记录 warning；一般财报和宏观关键词不直接当负面事件扣分。
+
+模型以 JSON 输出每票的 `thesis`、`counter_evidence`、`uncertainty`、`next_check` 和 `evidence_ids`；程序校验字段、完整覆盖、本票引用和数字来源，失败则保留规则正文。此校验不能证明文本因果推断为真，读者仍需核验。未回测规则评分、估值占位以及历史区间均不代表已验证策略或目标价预测。默认失效条件不再虚构重大负面事件，历史最高价只作为观察位。
+
+发送使用 `--require-sent`，未配置、跳过和失败不得记为送达。`reports/delivery.json` 只记录发送状态、模型和图片结果；完整持仓正文不上传到公开 Actions 日志或 artifact。图表失败发送带说明的正文，生成失败发送故障提示；SMTP 自身故障时故障邮件同样可能无法送达，需从 Actions 运行记录定位。keepalive 使用 GitHub 原生 enable API 续用当前 workflow，单独授予 `actions: write`，报告本身保持只读；GitHub 定时调度仍可能延迟或丢失。

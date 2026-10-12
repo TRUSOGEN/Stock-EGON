@@ -21,6 +21,8 @@ def score_position(
     news_risk_flags: list[str],
 ) -> PositionScore:
     """为单个持仓生成综合评分。"""
+    if len(history) < 2:
+        raise ValueError("技术评分至少需要两个完整交易日。")
     indicators = compute_indicators(history)
     latest = indicators.iloc[-1]
     trend_score = 50.0
@@ -30,13 +32,17 @@ def score_position(
     concentration_score = 75.0
     evidence: list[str] = []
 
-    if latest["ma20"] > latest["ma60"]:
+    if len(history) < 60:
+        evidence.append("历史不足 60 个交易日，季度趋势未验证")
+    elif latest["ma20"] > latest["ma60"]:
         trend_score += 18
         evidence.append("季度趋势向上")
     else:
         trend_score -= 18
         evidence.append("季度趋势偏弱")
-    if latest["ma60"] > latest["ma120"]:
+    if len(history) < 120:
+        evidence.append("历史不足 120 个交易日，半年趋势未验证")
+    elif latest["ma60"] > latest["ma120"]:
         trend_score += 8
         evidence.append("半年趋势保持向上")
     elif latest["ma60"] < latest["ma120"]:
@@ -88,8 +94,9 @@ def score_position(
         elif position.unrealized_pnl_pct > 0.2:
             risk_score += 6
             evidence.append("持仓已有显著浮盈")
-    if news_risk_flags:
-        risk_score -= min(30, 10 * len(news_risk_flags))
+    negative_flags = set(news_risk_flags) - {"earnings_event", "macro_event"}
+    if negative_flags:
+        risk_score -= min(30, 10 * len(negative_flags))
         evidence.append("事件驱动风险优先，存在新闻或事件风险标记")
 
     if position.weight > _max_single_name_weight(portfolio_risk_level):

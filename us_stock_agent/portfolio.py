@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+from math import isfinite
 from typing import Any
 
 from .models import Holding, MarketSnapshot, Portfolio, PortfolioView, PositionView
@@ -15,10 +16,14 @@ def load_portfolio_from_dict(payload: dict[str, Any]) -> Portfolio:
     if not isinstance(holdings_payload, list) or not holdings_payload:
         raise ValueError("portfolio 配置必须包含非空 holdings 列表。")
     holdings: list[Holding] = []
+    seen: set[str] = set()
     for item in holdings_payload:
         symbol = str(item["symbol"]).upper().strip()
+        if not symbol or symbol in seen:
+            raise ValueError(f"持仓代码为空或重复: {symbol}。")
+        seen.add(symbol)
         quantity = float(item["quantity"])
-        if quantity <= 0:
+        if not isfinite(quantity) or quantity <= 0:
             raise ValueError(f"{symbol} 的 quantity 必须大于 0。")
         holdings.append(
             Holding(
@@ -29,9 +34,12 @@ def load_portfolio_from_dict(payload: dict[str, Any]) -> Portfolio:
                 note=item.get("note"),
             )
         )
+    cash = float(payload.get("cash", 0))
+    if not isfinite(cash) or cash < 0:
+        raise ValueError("cash 必须为有限非负数。")
     return Portfolio(
         currency=str(payload.get("currency", "USD")).upper(),
-        cash=float(payload.get("cash", 0)),
+        cash=cash,
         risk_profile=str(payload.get("risk_profile", "balanced")),
         holdings=holdings,
     )
@@ -67,6 +75,10 @@ def build_portfolio_view(
         snapshot = snapshots.get(holding.symbol)
         if snapshot is None:
             raise ValueError(f"缺少 {holding.symbol} 的行情快照。")
+        if not isfinite(snapshot.price) or snapshot.price <= 0:
+            raise ValueError(f"{holding.symbol} 行情价格无效。")
+        if snapshot.currency != portfolio.currency:
+            raise ValueError(f"{holding.symbol} 币种 {snapshot.currency} 与组合 {portfolio.currency} 不同，缺少汇率。")
         market_value = holding.quantity * snapshot.price
         invested_value += market_value
         position_values.append((holding, snapshot, market_value))
@@ -116,4 +128,7 @@ def _optional_float(value: Any) -> float | None:
     """把可选字段转成 float。"""
     if value is None or value == "":
         return None
-    return float(value)
+    number = float(value)
+    if not isfinite(number) or number < 0:
+        raise ValueError("持仓成本或目标权重必须为有限非负数。")
+    return number

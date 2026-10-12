@@ -29,6 +29,17 @@ permissions:
   actions: read
 
 jobs:
+  keepalive:
+    if: ${{ vars.REPORT_ENABLED != 'false' }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Renew scheduled workflow activity
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api --method PUT "repos/$GITHUB_REPOSITORY/actions/workflows/us-stock-report.yml/enable"
+
   report:
     if: ${{ vars.REPORT_ENABLED != 'false' }}
     runs-on: ubuntu-latest
@@ -52,7 +63,7 @@ jobs:
       - name: Daily report
         if: steps.schedule_guard.outputs.skip != 'true' && steps.schedule_guard.outputs.report_type == 'daily'
         env:
-          PORTFOLIO_JSON: ${{ secrets.PORTFOLIO_JSON || vars.PORTFOLIO_JSON }}
+          PORTFOLIO_JSON: ${{ secrets.PORTFOLIO_JSON }}
           ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
           ALPHAVANTAGE_API_KEY: ${{ secrets.ALPHAVANTAGE_API_KEY }}
           SERPAPI_API_KEY: ${{ secrets.SERPAPI_API_KEY }}
@@ -92,12 +103,11 @@ jobs:
           mkdir -p reports
           python scripts/preflight.py
           python scripts/us_daily_report.py > reports/us-daily-report.json
-          cat reports/us-daily-report.json
-          python scripts/send_email_report.py --report-file reports/us-daily-report.json
+          python scripts/send_email_report.py --report-file reports/us-daily-report.json --require-sent --result-file reports/delivery.json
       - name: Weekly review
         if: steps.schedule_guard.outputs.skip != 'true' && steps.schedule_guard.outputs.report_type == 'weekly'
         env:
-          PORTFOLIO_JSON: ${{ secrets.PORTFOLIO_JSON || vars.PORTFOLIO_JSON }}
+          PORTFOLIO_JSON: ${{ secrets.PORTFOLIO_JSON }}
           ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
           ALPHAVANTAGE_API_KEY: ${{ secrets.ALPHAVANTAGE_API_KEY }}
           SERPAPI_API_KEY: ${{ secrets.SERPAPI_API_KEY }}
@@ -137,8 +147,20 @@ jobs:
           mkdir -p reports
           python scripts/preflight.py
           python scripts/us_weekly_review.py > reports/us-weekly-review.json
-          cat reports/us-weekly-review.json
-          python scripts/send_email_report.py --report-file reports/us-weekly-review.json
+          python scripts/send_email_report.py --report-file reports/us-weekly-review.json --require-sent --result-file reports/delivery.json
+      - name: Notify report failure
+        if: failure()
+        env:
+          EMAIL_ADDRESS: ${{ secrets.EMAIL_ADDRESS }}
+          EMAIL_AUTH_CODE: ${{ secrets.EMAIL_AUTH_CODE }}
+          EMAIL_SMTP_HOST: ${{ secrets.EMAIL_SMTP_HOST }}
+          EMAIL_SMTP_PORT: ${{ secrets.EMAIL_SMTP_PORT || vars.EMAIL_SMTP_PORT }}
+          EMAIL_USERNAME: ${{ secrets.EMAIL_USERNAME }}
+          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          EMAIL_USE_TLS: ${{ secrets.EMAIL_USE_TLS || vars.EMAIL_USE_TLS }}
+        run: python scripts/notify_report_failure.py
       - name: Write report marker
         if: success() && steps.schedule_guard.outputs.skip != 'true' && steps.schedule_guard.outputs.marker != ''
         run: |
@@ -156,5 +178,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: us-stock-report
-          path: reports/*.json
+          path: reports/delivery.json
           if-no-files-found: ignore

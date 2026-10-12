@@ -8,6 +8,7 @@ SerpAPI、Tavily 和 Brave Search；这些 provider 都通过运行时环境变�
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import dataclass
 from typing import Any, Mapping, Protocol
 
@@ -61,13 +62,20 @@ class MultiNewsProvider:
         """保存 provider 列表和每个 ticker 的最大新闻条数。"""
         self.providers = providers
         self.max_items_per_symbol = max_items_per_symbol
+        self.warnings: list[str] = []
 
     def fetch_news(self, symbols: list[str]) -> dict[str, list[NewsItem]]:
         """聚合多个 provider，并按 URL 或标题去重。"""
         merged = {symbol: [] for symbol in symbols}
         seen = {symbol: set() for symbol in symbols}
+        self.warnings = []
         for provider in self.providers:
-            provider_results = provider.fetch_news(symbols)
+            provider_results = {}
+            for symbol in symbols:
+                try:
+                    provider_results.update(provider.fetch_news([symbol]))
+                except Exception as exc:
+                    self.warnings.append(f"新闻源 {provider.provider_name} / {symbol} 调用失败（{type(exc).__name__}），已保留其他线索。")
             for symbol in symbols:
                 for item in provider_results.get(symbol, []):
                     key = item.url or item.title
@@ -109,6 +117,7 @@ class SerpAPINewsProvider:
                     "q": _build_query(symbol),
                     "api_key": self.api_key,
                     "num": 5,
+                    "tbs": "qdr:w",
                 },
                 timeout=self.timeout,
             )
@@ -162,6 +171,8 @@ class TavilyNewsProvider:
                     "api_key": self.api_key,
                     "query": _build_query(symbol),
                     "search_depth": "basic",
+                    "topic": "news",
+                    "time_range": "week",
                     "max_results": 5,
                     "include_answer": False,
                     "include_raw_content": False,
@@ -357,11 +368,11 @@ def _build_query(symbol: str) -> str:
 def _infer_risk_flag(text: str) -> str | None:
     """从标题和摘要中提取粗粒度风险标签。"""
     lowered = text.lower()
-    if any(keyword in lowered for keyword in ("lawsuit", "probe", "investigation", "sec", "recall", "downgrade")):
+    if re.search(r"\b(lawsuit|probe|investigation|recall|downgrade)\b|\bsec\s+(charges|investigat|probe)", lowered):
         return "negative_event"
-    if any(keyword in lowered for keyword in ("earnings", "guidance", "revenue", "margin")):
+    if re.search(r"\b(earnings|guidance|revenue|margin)\b", lowered):
         return "earnings_event"
-    if any(keyword in lowered for keyword in ("fed", "rate", "inflation", "tariff")):
+    if re.search(r"\b(fed|rate|inflation|tariff)\b", lowered):
         return "macro_event"
     return None
 

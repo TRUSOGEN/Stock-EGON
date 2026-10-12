@@ -16,11 +16,17 @@ Stock-EGON 是一个股票研究辅助项目，当前包含两部分：基于 AK
 
 ## AI API 和复用边界
 
-当前美股日报和周报的核心判断仍然来自 Python 规则引擎：读取持仓，拉取行情和可选新闻源，按趋势、动量、组合风险和 guardrail 生成报告。LLM 投研助理是可选增强层，只在配置 key 后把规则报告改写成更适合邮件阅读的中文解释。所以别人复用这个项目时，不会用你的 Codex，也不需要你的 OpenAI key。
+当前美股日报和周报的核心判断仍然来自 Python 规则引擎：读取持仓，拉取行情和可选新闻源，按趋势、动量、组合风险和 guardrail 生成报告。LLM 投研助理是可选证据分析层：接收行情、指标、规则、持仓风险和新闻链接组成的结构化证据，输出带引用的研究推断、反向证据和下一项核验；程序行情与规则正文保留原文。所以别人复用这个项目时，不会用你的 Codex，也不需要你的 OpenAI key。
 
 别人要复用时，应 fork 仓库到自己的 GitHub 账号，并在自己的仓库 Secrets 里配置自己的 `PORTFOLIO_JSON`、邮箱 SMTP、新闻源 key 和可选 LLM key。真实持仓、邮箱授权码、新闻源 key 和 LLM key 都不应该写进代码。
 
-GitHub Actions 不能复用你本机的 Codex 登录态。需要 LLM 增强时，火山方舟应配置 `ARK_API_KEY` 和 `ARK_MODEL`，DeepSeek 官方接口应配置 `DEEPSEEK_API_KEY`，其他 OpenAI-compatible 服务可配置 `LLM_API_KEY`、`LLM_BASE_URL`、`LLM_MODEL`。也兼容 `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`OPENAI_MODEL` 这类常见命名。LLM 使用流式 Chat Completions，因此 30 秒读取上限用于判断流是否中断，不限制整段报告的生成总时长；可通过 `LLM_TIMEOUT_SECONDS` 调整。单次改写默认最多生成 1600 tokens，可通过 `LLM_MAX_TOKENS` 调整。连接或首次响应超时时会等待 1 秒后重试一次。LLM 外部调用最终失败时，邮件会在正文顶部写明失败原因，并继续发送规则版报告。详细说明见 [docs/llm-config-guide.md](docs/llm-config-guide.md)。
+GitHub Actions 不能复用你本机的 Codex 登录态。需要 LLM 增强时，火山方舟应配置 `ARK_API_KEY` 和 `ARK_MODEL`，DeepSeek 官方接口应配置 `DEEPSEEK_API_KEY`，其他 OpenAI-compatible 服务可配置 `LLM_API_KEY`、`LLM_BASE_URL`、`LLM_MODEL`。也兼容 `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`OPENAI_MODEL` 这类常见命名。LLM 使用流式 Chat Completions，因此 30 秒读取上限用于判断流是否中断，不限制整段报告的生成总时长；可通过 `LLM_TIMEOUT_SECONDS` 调整。单次分析默认最多生成 8192 tokens，可通过 `LLM_MAX_TOKENS` 调整。连接或首次响应超时时会等待 1 秒后重试一次。LLM 外部调用最终失败时，邮件会在正文顶部写明失败原因，并继续发送规则版报告。详细说明见 [docs/llm-config-guide.md](docs/llm-config-guide.md)。
+
+## 行情与送达校验
+
+报告使用最近完整美股常规交易日收盘价，逐票显示名称、币种、时间与来源，不混入盘前、盘后或隔夜报价。快照、指标和邮件图表复用本次日线；校验交易日历、代码身份、币种、OHLC、有限数值和同日报价一致性。历史不足 120 个交易日时不生成半年趋势结论。拆股不自动修改持仓股数和成本，须以券商当前口径核对。免费 Yahoo 数据仍无商业行情 SLA。
+
+公开仓库可能因 60 天无活动暂停定时 workflow；工作流加入独立 keepalive job，通过 GitHub API 续用当前 workflow，且遵守 `REPORT_ENABLED=false`。报告任务只具备只读权限，续用 job 单独具备 `actions: write`。发送必须得到 SMTP 成功返回才写 marker；图表或模型失败会显式降级，核心生成失败会向既有邮箱发送故障提示。SMTP 接受不等于收件箱已收到。
 
 ## 怎么读美股报告
 
@@ -57,11 +63,11 @@ GitHub Actions 不能复用你本机的 Codex 登录态。需要 LLM 增强时�
 | `ARK_API_KEY` | 火山方舟 API key | 火山方舟必填 | Secrets |
 | `ARK_MODEL` | 火山方舟 model 或接入点 ID | 火山方舟必填 | Secrets 或 Variables |
 | `ARK_BASE_URL` | 火山方舟 base URL，默认 `https://ark.cn-beijing.volces.com/api/v3` | 火山方舟可选 | Secrets 或 Variables |
-| `DEEPSEEK_API_KEY` | DeepSeek API key，自动使用 `https://api.deepseek.com` 和 `deepseek-chat` | LLM 可选 | Secrets |
+| `DEEPSEEK_API_KEY` | DeepSeek API key，自动使用 `https://api.deepseek.com` 和 `deepseek-flash` | LLM 可选 | Secrets |
 | `LLM_API_KEY` | 通用 OpenAI-compatible API key | LLM 可选 | Secrets |
 | `LLM_BASE_URL` | 通用 OpenAI-compatible base URL | LLM 可选 | Secrets 或 Variables |
-| `LLM_MODEL` | 通用模型名，例如 `deepseek-chat` | LLM 可选 | Secrets 或 Variables |
-| `LLM_MAX_TOKENS` | 单次 LLM 改写的最大输出 tokens，默认 `1600` | LLM 可选 | Secrets 或 Variables |
+| `LLM_MODEL` | 通用模型名，例如 `deepseek-flash` | LLM 可选 | Secrets 或 Variables |
+| `LLM_MAX_TOKENS` | 单次 LLM 改写的最大输出 tokens，默认 `8192` | LLM 可选 | Secrets 或 Variables |
 | `OPENAI_API_KEY` | 兼容 OpenAI 命名的 API key | LLM 可选 | Secrets |
 | `OPENAI_BASE_URL` | 兼容 OpenAI 命名的 base URL | LLM 可选 | Secrets 或 Variables |
 | `OPENAI_MODEL` | 兼容 OpenAI 命名的模型名 | LLM 可选 | Secrets 或 Variables |
@@ -72,7 +78,7 @@ GitHub Actions 不能复用你本机的 Codex 登录态。需要 LLM 增强时�
 
 不要把持仓、邮箱密码和 API key 填到 `Variables`，因为 Variables 是明文配置；Secrets 才是加密配置。`REPORT_ENABLED=false` 这种非敏感开关可以放到 Variables。
 
-LLM 增强层只改写报告，不负责创造交易结论。未配置 LLM key 时会跳过增强并发送原始规则报告；已配置 LLM key 但请求失败时，邮件正文顶部会写明失败原因，并继续发送规则版报告，避免可选改写阻断核心日报送达。
+LLM 分析只能追加到程序报告，引用、覆盖范围和数字必须通过校验；旧 JSON 未含证据包时保留原来的改写兼容路径。未配置 LLM key 时会跳过增强并发送原始规则报告；已配置 LLM key 但请求失败时，邮件正文顶部会写明失败原因，并继续发送规则版报告，避免可选改写阻断核心日报送达。
 
 ## 最小可用配置
 
@@ -90,7 +96,7 @@ LLM 增强层只改写报告，不负责创造交易结论。未配置 LLM key �
 }
 ```
 
-手动运行方式：进入 GitHub `Actions` -> `US Stock Portfolio Report` -> `Run workflow`，`report_type` 选择 `daily` 或 `weekly`。运行完成后，可以在日志里看到 JSON，也可以在 `Artifacts` 下载 `us-stock-report`；配置了邮件 SMTP 后，收件邮箱会收到纯文本报告。
+手动运行方式：进入 GitHub `Actions` -> `US Stock Portfolio Report` -> `Run workflow`，`report_type` 选择 `daily` 或 `weekly`。运行完成后，`Artifacts` 中的 `us-stock-report` 只保留脱敏发送回执；完整行情与分析通过既有邮箱投递，不再把持仓正文打印到公开日志。
 
 ## 本地快速开始
 

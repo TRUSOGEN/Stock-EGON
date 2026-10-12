@@ -4,7 +4,7 @@
 
 本 agent 的目标是在非本机环境中定时生成美股持仓日报和周报。推荐部署到 GitHub 私有仓库，通过 GitHub Actions 定时运行，通过 Secrets/Variables 注入持仓、新闻源和通知配置。用户日常只需要维护 GitHub Secrets，不需要把真实持仓留在当前电脑。
 
-当前美股 agent 的核心判断不依赖 Codex、OpenAI 或其他 LLM API。它是规则引擎，主要依赖 yfinance 行情、可选新闻搜索 provider、持仓配置和 SMTP 通知。LLM 投研助理是可选增强层，只在配置 key 后把规则报告改写成更适合邮件阅读的中文解释。任何人复用时都应 fork 仓库，并配置自己的 Secrets；不会也不能复用你的 Codex 登录态。
+当前美股 agent 的核心判断不依赖 Codex、OpenAI 或其他 LLM API。它是规则引擎，主要依赖 yfinance 行情、可选新闻搜索 provider、持仓配置和 SMTP 通知。LLM 投研助理是可选证据分析层，在原始规则报告后追加带来源的推断与核验事项。任何人复用时都应 fork 仓库，并配置自己的 Secrets；不会也不能复用你的 Codex 登录态。
 
 ## 必填配置
 
@@ -43,7 +43,7 @@ QQ 邮箱推送推荐只配置 `EMAIL_ADDRESS` 和 `EMAIL_AUTH_CODE`。`EMAIL_AD
 
 其他邮箱可继续配置完整 SMTP 字段：`EMAIL_SMTP_HOST`、`EMAIL_SMTP_PORT`、`EMAIL_USERNAME`、`EMAIL_PASSWORD`、`EMAIL_FROM`、`EMAIL_TO`。配置后 workflow 会在生成日报或周报 JSON 后调用 `scripts/send_email_report.py`，把报告整理成更适合邮件阅读的文本和 HTML 正文后发出。Gmail、QQ 邮箱、Outlook 等通常需要应用专用密码，不要填写网页登录密码。
 
-LLM 投研助理可选配置。火山方舟应配置 `ARK_API_KEY` 和 `ARK_MODEL`，默认使用 `https://ark.cn-beijing.volces.com/api/v3`。DeepSeek 官方接口可配置 `DEEPSEEK_API_KEY`，系统会自动使用 `https://api.deepseek.com` 和 `deepseek-chat`。通用 OpenAI-compatible 服务可配置 `LLM_API_KEY`、`LLM_BASE_URL`、`LLM_MODEL`。为了兼容常见项目，也支持 `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`OPENAI_MODEL`。LLM 使用流式 Chat Completions，连接最多等待 10 秒，连续数据块间隔默认最多等待 30 秒，可通过 `LLM_TIMEOUT_SECONDS` 调整；单次改写默认最多生成 1600 tokens，可用 `LLM_MAX_TOKENS` 调整。连接或首次响应超时时等待 1 秒后重试一次；流中断和其他最终调用失败会把失败原因写在邮件正文顶部，并继续发送规则报告。细节见 [llm-config-guide.md](llm-config-guide.md)。
+LLM 投研助理可选配置。火山方舟应配置 `ARK_API_KEY` 和 `ARK_MODEL`，默认使用 `https://ark.cn-beijing.volces.com/api/v3`。DeepSeek 官方接口可配置 `DEEPSEEK_API_KEY`，系统会自动使用 `https://api.deepseek.com` 和 `deepseek-flash`。通用 OpenAI-compatible 服务可配置 `LLM_API_KEY`、`LLM_BASE_URL`、`LLM_MODEL`。为了兼容常见项目，也支持 `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`OPENAI_MODEL`。LLM 使用流式 Chat Completions，连接最多等待 10 秒，连续数据块间隔默认最多等待 30 秒，可通过 `LLM_TIMEOUT_SECONDS` 调整；单次改写默认最多生成 8192 tokens，可用 `LLM_MAX_TOKENS` 调整。连接或首次响应超时时等待 1 秒后重试一次；流中断和其他最终调用失败会把失败原因写在邮件正文顶部，并继续发送规则报告。细节见 [llm-config-guide.md](llm-config-guide.md)。
 
 企业微信推送脚本仍保留在 `scripts/send_wechat_report.py`，但默认 workflow 已改为邮件推送。如果后续重新使用企业微信群机器人，可以再配置 `WECHAT_WEBHOOK_URL` 并把 workflow 接回该脚本。
 
@@ -65,8 +65,14 @@ GitHub Actions 的 schedule 使用 UTC 时间，且官方说明定时任务可�
 
 ## 输出与审计
 
-workflow 会把 JSON 报告打印到日志，并上传到 `us-stock-report` artifact。报告中的 `report_markdown` 是规则引擎报告，外层 JSON 保留 `ok`、`source_api`、`warnings`、`errors` 等机器可读状态。邮件推送会输出一个 `send_email_report` JSON，便于确认是已发送、已跳过、SMTP 失败、是否启用了 LLM 增强，以及是否内嵌了报价图。
+workflow 不再把完整持仓报告打印到日志，`us-stock-report` artifact 只上传脱敏 `delivery.json` 回执。报告中的 `report_markdown` 是规则引擎报告，外层 JSON 保留 `ok`、`source_api`、`warnings`、`errors` 等机器可读状态。邮件推送会输出一个 `send_email_report` JSON，便于确认是已发送、已跳过、SMTP 失败、是否启用了 LLM 增强，以及是否内嵌了报价图。
 
 ## 风控边界
 
-动作分层是研究标签，不是自动交易指令。`add_candidate` 必须通过数据质量与触发条件 guardrail；如果行情质量不足、新闻源缺失、缺少进入区间或失效条件，动作会降级为 `watch`。没有公开 ticker 的私营公司不能当作股票代码写入持仓；只有券商持仓页明确显示 ticker 时才写入。
+动作分层是研究标签，不是自动交易指令。`add_candidate` 必须通过数据质量与触发条件 guardrail；如果行情质量不足、缺少进入区间或失效条件，动作会降级为 `watch`。没有公开 ticker 的私营公司不能当作股票代码写入持仓；只有券商持仓页明确显示 ticker 时才写入。
+
+## 定时工作流被自动停用
+
+公开仓库 60 天无活动可能被 GitHub 自动停用，状态为 `disabled_inactivity`。先在 Actions 点击 Enable workflow 恢复。本 workflow 的独立 keepalive job 使用 GitHub 原生 enable API 续用自身，不创建空提交；该 job 需要 `actions: write`，报告 job 保持只读，`REPORT_ENABLED=false` 同时暂停二者。实现参考 [gh-workflow-keepalive](https://github.com/liskin/gh-workflow-keepalive)，平台规则见 [GitHub schedule 文档](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule)。
+
+成功 marker 只在 SMTP 明确返回发送成功后产生。图表或模型失败会显式降级；核心生成失败发送既有邮箱故障提示，SMTP 故障无法依靠同一通道自我告警。定时延迟和最终收件箱投递仍不在 GitHub/SMTP 成功回执的保证范围内。

@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+from dataclasses import asdict
+import json
+
+from a_stock_quant.indicators import compute_indicators, safe_float
 from a_stock_quant.output import make_result
 
 from .decision import classify_action, score_position
@@ -30,17 +34,21 @@ def run_report(
     portfolio_risk = assess_portfolio_risk(view, risk_profile=portfolio.risk_profile)
     news_warnings: list[str] = []
     try:
-        news = build_news_provider_from_env().fetch_news(symbols)
+        news_provider = build_news_provider_from_env()
+        news = news_provider.fetch_news(symbols)
+        news_warnings.extend(getattr(news_provider, "warnings", []))
     except Exception as exc:  # noqa: BLE001
         news = {symbol: [] for symbol in symbols}
         news_warnings.append(f"新闻源调用失败，已跳过新闻增强: {exc}")
     scored_actions = []
+    evidence = {}
     for position in view.positions:
-        risk_flags = [item.risk_flag for item in news[position.symbol] if item.risk_flag]
+        items = news.get(position.symbol, [])
+        risk_flags = [item.risk_flag for item in items if item.risk_flag]
         history = histories[position.symbol]
         data_quality = normalize_data_quality(
             {
-                "quote": "high" if snapshots.get(position.symbol) else "missing",
+                "quote": snapshots[position.symbol].quality,
                 "daily_bars": assess_history_quality(history),
             }
         )
@@ -59,10 +67,31 @@ def run_report(
             trigger_levels=trigger_levels,
         )
         scored_actions.append((score, action))
+        latest = compute_indicators(history).iloc[-1]
+        evidence[position.symbol] = {
+            "quote": {"id": f"{position.symbol}:quote", **asdict(snapshots[position.symbol])},
+            "position": {"id": f"{position.symbol}:position", **asdict(position)},
+            "technical": {
+                "id": f"{position.symbol}:technical", "bars": len(history),
+                "data_time": str(history["date"].iloc[-1]),
+                "ma20": safe_float(latest["ma20"]) if len(history) >= 20 else None,
+                "ma60": safe_float(latest["ma60"]) if len(history) >= 60 else None,
+                "ma120": safe_float(latest["ma120"]) if len(history) >= 120 else None,
+                "rsi24": safe_float(latest["rsi24"]) if len(history) >= 25 else None,
+                "volume_ratio_20": safe_float(latest["volume_ratio_20"]) if len(history) >= 20 else None,
+                "data_quality": data_quality,
+            },
+            "rules": {"id": f"{position.symbol}:rules", "score": asdict(score), "action": asdict(action),
+                      "validation": "heuristic_not_backtested", "valuation": "not_available"},
+            "news": [{"id": f"{position.symbol}:news:{index}", **asdict(item),
+                      "verification": "search_result_not_verified_full_text"} for index, item in enumerate(items)],
+        }
 
     market_notes = [news_provider_status()]
     market_notes.extend(news_warnings)
     market_notes.extend(_format_news_notes(news))
+    market_notes.extend(warning for quote in snapshots.values() for warning in quote.warnings)
+    market_notes.append("常规盘已收盘价格；盘前、盘后与隔夜价格不计入组合估值。技术区间是历史统计参考，不是预测目标价。")
     if report_type == "weekly":
         report = render_weekly_review(
             view=view,
@@ -81,10 +110,16 @@ def run_report(
         module = "us_daily_report"
     else:
         raise ValueError("report_type 必须是 daily 或 weekly。")
+    quote_lines = ["## 行情核对（程序计算）", ""]
+    for symbol in symbols:
+        quote = snapshots[symbol]
+        quote_lines.append(f"- {symbol} / {quote.name or '名称未提供'}：收盘 {quote.price:.4f} {quote.currency}；行情时间 {quote.data_time or '未提供'}；来源 {quote.source}；口径 {quote.price_basis}。")
+    report = "\n".join(quote_lines) + "\n\n" + report
     return make_result(
         module=module,
-        data={"report_markdown": report, "symbols": symbols},
-        data_time=None,
+        data={"report_markdown": report, "symbols": symbols, "evidence": evidence,
+              "chart_history": {symbol: json.loads(history.to_json(orient="records", date_format="iso")) for symbol, history in histories.items()}},
+        data_time=min((quote.data_time for quote in snapshots.values() if quote.data_time), default=None),
         source_api="yfinance + configured_news_provider",
         warnings=[
             "免费行情源可能延迟或失败；报告仅供研究复盘，不构成投资建议。",
@@ -102,13 +137,13 @@ def _build_trigger_levels(symbol: str, history) -> TriggerLevels:
     entry_low = min(current, support * 1.02)
     entry_high = current * 1.01
     stop_loss = support * 0.98
-    target_price = max(resistance, current * 1.15)
+    target_price = resistance
     return TriggerLevels(
         entry_low=entry_low,
         entry_high=entry_high,
         stop_loss=stop_loss,
         target_price=target_price,
-        invalidation=f"{symbol} 跌破 {stop_loss:.2f} 或重大负面事件被确认",
+        invalidation=f"{symbol} 跌破 {stop_loss:.2f}",
     )
 
 
@@ -118,6 +153,7 @@ def _format_news_notes(news: dict[str, list[NewsItem]]) -> list[str]:
     for symbol, items in news.items():
         if not items:
             continue
-        top_titles = "；".join(item.title for item in items[:2])
-        notes.append(f"{symbol} 最新资讯: {top_titles}")
+        for item in items[:2]:
+            title = f"[{item.title}]({item.url})" if item.url else item.title
+            notes.append(f"{symbol} 搜索线索（未核验全文）: {title}；来源 {item.source}")
     return notes

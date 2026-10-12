@@ -96,7 +96,7 @@ class TestLLMEnhancer(unittest.TestCase):
         self.assertTrue(config.enabled)
         self.assertEqual(config.api_key, "secret")
         self.assertEqual(config.base_url, "https://api.deepseek.com")
-        self.assertEqual(config.model, "deepseek-chat")
+        self.assertEqual(config.model, "deepseek-flash")
         self.assertEqual(config.provider, "deepseek")
 
     def test_load_llm_config_supports_ark_shortcut(self) -> None:
@@ -180,7 +180,7 @@ class TestLLMEnhancer(unittest.TestCase):
         payload = calls[0][1]["json"]
         self.assertEqual(payload["model"], "provider/model")
         self.assertTrue(payload["stream"])
-        self.assertEqual(payload["max_tokens"], 1600)
+        self.assertEqual(payload["max_tokens"], 8192)
         self.assertTrue(calls[0][1]["stream"])
         self.assertIn("原始报告", payload["messages"][1]["content"])
         self.assertIn("美股长期持仓复盘助理", payload["messages"][1]["content"])
